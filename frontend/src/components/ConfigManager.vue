@@ -44,6 +44,10 @@
       </div>
     </div>
 
+    <div v-if="toast.show" class="toast" :class="toast.type">
+      {{ toast.message }}
+    </div>
+
     <div v-if="configStore.loading" class="loading">Loading configurations...</div>
     <div v-else-if="configStore.error" class="error">{{ configStore.error }}</div>
 
@@ -86,7 +90,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useConfigStore } from '../stores/config';
@@ -99,6 +103,15 @@ const selectedCategory = ref('');
 const selectedOrganization = ref('');
 const selectedSite = ref('');
 const selectedAgent = ref('');
+
+const toast = reactive({ show: false, message: '', type: 'info' });
+
+function showToast(message, type = 'info', duration = 3000) {
+  toast.show = true;
+  toast.message = message;
+  toast.type = type;
+  setTimeout(() => { toast.show = false; }, duration);
+}
 
 const canEdit = computed(() => {
   // Add role check logic here
@@ -183,18 +196,24 @@ async function loadData() {
 
 async function updateValue(config, value, level) {
   try {
-    await configStore.updateConfig(config.ConfigID, value, level);
+    const result = await configStore.updateConfig(config.ConfigID || config.id, value, level);
+    if (result?.blocked) {
+      showToast('Edit blocked - database is in read-only mode', 'warning');
+    }
   } catch (error) {
-    alert('Failed to update configuration');
+    showToast('Failed to update configuration', 'error');
   }
 }
 
 async function deleteConfig(configId) {
   if (confirm('Are you sure you want to delete this configuration?')) {
     try {
-      await configStore.deleteConfig(configId);
+      const result = await configStore.deleteConfig(configId);
+      if (result?.blocked) {
+        showToast('Delete blocked - database is in read-only mode', 'warning');
+      }
     } catch (error) {
-      alert('Failed to delete configuration');
+      showToast('Failed to delete configuration', 'error');
     }
   }
 }
@@ -383,5 +402,31 @@ select {
 
 .delete-btn:hover {
   color: #c00;
+}
+
+.toast {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.toast.info {
+  background: #0a5591;
+  color: white;
+}
+
+.toast.warning {
+  background: #f59e0b;
+  color: white;
+}
+
+.toast.error {
+  background: #dc2626;
+  color: white;
 }
 </style>

@@ -118,8 +118,12 @@ export const useConfigStore = defineStore('config', {
 
     async updateConfig(configId, value, level) {
       try {
-        await api.updateConfig(configId, { value, level });
+        const response = await api.updateConfig(configId, { value, level });
+        if (response.data.blocked) {
+          return { blocked: true, message: response.data.message };
+        }
         await this.loadConfigs();
+        return { blocked: false };
       } catch (error) {
         this.error = error.response?.data?.error || 'Failed to update configuration';
         throw error;
@@ -138,8 +142,12 @@ export const useConfigStore = defineStore('config', {
 
     async deleteConfig(configId) {
       try {
-        await api.deleteConfig(configId);
+        const response = await api.deleteConfig(configId);
+        if (response.data.blocked) {
+          return { blocked: true, message: response.data.message };
+        }
         await this.loadConfigs();
+        return { blocked: false };
       } catch (error) {
         this.error = error.response?.data?.error || 'Failed to delete configuration';
         throw error;

@@ -3,6 +3,17 @@ const { createLogger } = require('../utils/logger');
 
 const log = createLogger(__filename);
 
+// Read-only mode - blocks all write operations and logs SQL instead
+const READ_ONLY_MODE = process.env.DB_READ_ONLY === 'true';
+
+function logBlockedWrite(reqLog, operation, sql, params) {
+  reqLog.warn('BLOCKED WRITE (read-only mode)', {
+    operation,
+    sql,
+    params
+  });
+}
+
 // Get configs using the actual stored procedure from ASCX
 // Maps to: GET_CONFIG_DATA_BY_CUSTID_CATEGORY_ORG_SITE_AGENT
 async function getCustomerConfigs(req, res) {
@@ -111,17 +122,21 @@ async function updateConfig(req, res) {
       return res.status(400).json({ error: 'Invalid level. Must be one of: GLOBAL, CUSTOMER, ORG, SITE, AGENT' });
     }
 
-    // Use positional parameters like ASCX does
-    await queryConfig(
-      `EXEC UPDATE_CONFIGURATION_OVERRIDES @p1, @p2, @p3, @p4, @p5`,
-      {
-        p1: configId,
-        p2: value || '',
-        p3: property || '',
-        p4: upperLevel,
-        p5: req.user.username
-      }
-    );
+    const sql = `EXEC UPDATE_CONFIGURATION_OVERRIDES @p1, @p2, @p3, @p4, @p5`;
+    const params = {
+      p1: configId,
+      p2: value || '',
+      p3: property || '',
+      p4: upperLevel,
+      p5: req.user.username
+    };
+
+    if (READ_ONLY_MODE) {
+      logBlockedWrite(reqLog, 'UPDATE_CONFIG', sql, params);
+      return res.json({ success: true, blocked: true, message: 'Write blocked (read-only mode)' });
+    }
+
+    await queryConfig(sql, params);
 
     reqLog.info('Config updated', { configId, level: upperLevel, username: req.user.username });
     res.json({ success: true });
@@ -139,14 +154,18 @@ async function deleteConfig(req, res) {
   try {
     const { configId } = req.params;
 
-    // Use positional parameters like ASCX does
-    await queryConfig(
-      `EXEC DELETE_OVERRIDE_BY_CONFIGURATION_OVERRIDE_ID @p1, @p2`,
-      {
-        p1: configId,
-        p2: req.user.username
-      }
-    );
+    const sql = `EXEC DELETE_OVERRIDE_BY_CONFIGURATION_OVERRIDE_ID @p1, @p2`;
+    const params = {
+      p1: configId,
+      p2: req.user.username
+    };
+
+    if (READ_ONLY_MODE) {
+      logBlockedWrite(reqLog, 'DELETE_CONFIG', sql, params);
+      return res.json({ success: true, blocked: true, message: 'Write blocked (read-only mode)' });
+    }
+
+    await queryConfig(sql, params);
 
     reqLog.info('Config deleted', { configId, username: req.user.username });
     res.json({ success: true });
@@ -302,21 +321,25 @@ async function createMaintenanceTask(req, res) {
       return res.status(400).json({ error: 'section (task name) is required' });
     }
 
-    // Use positional parameters
-    await queryConfig(
-      `EXEC ADD_RMM_MAINTENANCE_TASK @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9`,
-      {
-        p1: customerId || '',
-        p2: organizationId || '',
-        p3: organization || '',
-        p4: organizationCode || '',
-        p5: site || '',
-        p6: agentId || '',
-        p7: agent || '',
-        p8: section,
-        p9: req.user.username
-      }
-    );
+    const sql = `EXEC ADD_RMM_MAINTENANCE_TASK @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9`;
+    const params = {
+      p1: customerId || '',
+      p2: organizationId || '',
+      p3: organization || '',
+      p4: organizationCode || '',
+      p5: site || '',
+      p6: agentId || '',
+      p7: agent || '',
+      p8: section,
+      p9: req.user.username
+    };
+
+    if (READ_ONLY_MODE) {
+      logBlockedWrite(reqLog, 'CREATE_MAINTENANCE_TASK', sql, params);
+      return res.json({ success: true, blocked: true, message: 'Write blocked (read-only mode)' });
+    }
+
+    await queryConfig(sql, params);
 
     reqLog.info('Maintenance task created', { section, customerId, username: req.user.username });
     res.json({ success: true });
