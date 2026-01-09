@@ -5,6 +5,7 @@ const log = createLogger(__filename);
 
 // Read-only mode - blocks all write operations and logs SQL instead
 const READ_ONLY_MODE = process.env.DB_READ_ONLY === 'true';
+log.info('Config controller initialized', { readOnlyMode: READ_ONLY_MODE, envValue: process.env.DB_READ_ONLY });
 
 function logBlockedWrite(reqLog, operation, sql, params) {
   reqLog.warn('BLOCKED WRITE (read-only mode)', {
@@ -114,6 +115,10 @@ async function updateConfig(req, res) {
     const { configId } = req.params;
     const { value, property, level } = req.body;
 
+    if (!configId || configId === 'undefined') {
+      return res.status(400).json({ error: 'configId is required' });
+    }
+
     // Level maps to: GLOBAL, CUSTOMER, ORG, SITE, AGENT
     const validLevels = ['GLOBAL', 'CUSTOMER', 'ORG', 'SITE', 'AGENT'];
     const upperLevel = (level || '').toUpperCase();
@@ -153,6 +158,10 @@ async function deleteConfig(req, res) {
   const reqLog = req.log || log;
   try {
     const { configId } = req.params;
+
+    if (!configId || configId === 'undefined') {
+      return res.status(400).json({ error: 'configId is required' });
+    }
 
     const sql = `EXEC DELETE_OVERRIDE_BY_CONFIGURATION_OVERRIDE_ID @p1, @p2`;
     const params = {

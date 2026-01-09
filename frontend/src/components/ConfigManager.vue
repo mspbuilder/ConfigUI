@@ -196,7 +196,13 @@ async function loadData() {
 
 async function updateValue(config, value, level) {
   try {
-    const result = await configStore.updateConfig(config.ConfigID || config.id, value, level);
+    const id = getConfigId(config);
+    console.log('updateValue config:', config, 'extracted id:', id);
+    if (!id) {
+      showToast('Cannot update: missing config ID', 'error');
+      return;
+    }
+    const result = await configStore.updateConfig(id, value, level);
     if (result?.blocked) {
       showToast('Edit blocked - database is in read-only mode', 'warning');
     }
