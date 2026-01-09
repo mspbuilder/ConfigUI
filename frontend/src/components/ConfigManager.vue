@@ -50,105 +50,44 @@
     <div v-else class="config-sections">
       <div
         v-for="group in configStore.groupedConfigs"
-        :key="`${group.category}_${group.section}`"
+        :key="group.section"
         class="config-section"
       >
         <div class="section-header">
           <h2>{{ group.section }}</h2>
-          <span v-if="group.sectionToolTip" class="tooltip">ℹ️ {{ group.sectionToolTip }}</span>
+          <span v-if="group.sectionToolTip" class="tooltip">{{ group.sectionToolTip }}</span>
         </div>
 
         <div class="config-items">
-          <div v-for="config in group.items" :key="config.ConfigID" class="config-item">
+          <div v-for="config in group.items" :key="getConfigId(config)" class="config-item">
             <div class="config-label">
-              <span class="property-name">{{ config.Property }}</span>
-              <span v-if="config.ToolTip" class="tooltip">❓ {{ config.ToolTip }}</span>
+              <span class="property-name">{{ getProperty(config) }}</span>
+              <span v-if="getTooltip(config)" class="tooltip" :title="getTooltip(config)">?</span>
             </div>
 
             <div class="config-values">
               <div class="value-group">
-                <label>Default</label>
+                <label>Value</label>
                 <input
-                  v-if="config.DataTypeID !== 2"
+                  v-if="!isPasswordField(config)"
                   type="text"
-                  :value="config.DefaultValue"
-                  @change="updateValue(config, $event.target.value, 'default')"
+                  :value="getValue(config)"
+                  :placeholder="getPlaceholder(config)"
+                  @change="updateValue(config, $event.target.value, getCurrentLevel())"
                   :disabled="!canEdit"
                 />
-                <select
-                  v-else
-                  :value="config.DefaultValue"
-                  @change="updateValue(config, $event.target.value, 'default')"
-                  :disabled="!canEdit"
-                >
-                  <option value="True">True</option>
-                  <option value="False">False</option>
-                </select>
-              </div>
-
-              <div v-if="selectedOrganization" class="value-group">
-                <label>Org</label>
                 <input
-                  v-if="config.DataTypeID !== 2"
-                  type="text"
-                  :value="config.OrgValue"
-                  @change="updateValue(config, $event.target.value, 'org')"
+                  v-else
+                  type="password"
+                  :value="getValue(config)"
+                  @change="updateValue(config, $event.target.value, getCurrentLevel())"
                   :disabled="!canEdit"
                 />
-                <select
-                  v-else
-                  :value="config.OrgValue"
-                  @change="updateValue(config, $event.target.value, 'org')"
-                  :disabled="!canEdit"
-                >
-                  <option value="True">True</option>
-                  <option value="False">False</option>
-                </select>
-              </div>
-
-              <div v-if="selectedSite" class="value-group">
-                <label>Site</label>
-                <input
-                  v-if="config.DataTypeID !== 2"
-                  type="text"
-                  :value="config.SiteValue"
-                  @change="updateValue(config, $event.target.value, 'site')"
-                  :disabled="!canEdit"
-                />
-                <select
-                  v-else
-                  :value="config.SiteValue"
-                  @change="updateValue(config, $event.target.value, 'site')"
-                  :disabled="!canEdit"
-                >
-                  <option value="True">True</option>
-                  <option value="False">False</option>
-                </select>
-              </div>
-
-              <div v-if="selectedAgent" class="value-group">
-                <label>Agent</label>
-                <input
-                  v-if="config.DataTypeID !== 2"
-                  type="text"
-                  :value="config.AgentValue"
-                  @change="updateValue(config, $event.target.value, 'agent')"
-                  :disabled="!canEdit"
-                />
-                <select
-                  v-else
-                  :value="config.AgentValue"
-                  @change="updateValue(config, $event.target.value, 'agent')"
-                  :disabled="!canEdit"
-                >
-                  <option value="True">True</option>
-                  <option value="False">False</option>
-                </select>
               </div>
             </div>
 
-            <div v-if="config.NonDefaultTask" class="actions">
-              <button @click="deleteConfig(config.ConfigID)" class="delete-btn">🗑️</button>
+            <div v-if="isNonDefaultTask(config)" class="actions">
+              <button @click="deleteConfig(getConfigId(config))" class="delete-btn" title="Remove Task">X</button>
             </div>
           </div>
         </div>
@@ -176,6 +115,44 @@ const canEdit = computed(() => {
   // Add role check logic here
   return true;
 });
+
+// Helper functions to handle both uppercase and lowercase column names from SQL Server
+function getConfigId(config) {
+  return config.ID || config.id || config.ConfigID || '';
+}
+
+function getProperty(config) {
+  return config.property || config.Property || '';
+}
+
+function getValue(config) {
+  return config.value || config.Value || '';
+}
+
+function getTooltip(config) {
+  const tip = config.tooltip || config.ToolTip || '';
+  return tip === 'No Tip' ? '' : tip;
+}
+
+function getPlaceholder(config) {
+  return config.placeholder || config.Placeholder || '';
+}
+
+function isPasswordField(config) {
+  return (config.MVPwdFlag === 'True' || config.MVPwdFlag === true ||
+          config.MVPwdFlag2 === '1' || config.MVPwdFlag2 === 1);
+}
+
+function isNonDefaultTask(config) {
+  return config.NonDefaultTask === 'True' || config.NonDefaultTask === true;
+}
+
+function getCurrentLevel() {
+  if (selectedAgent.value) return 'AGENT';
+  if (selectedSite.value) return 'SITE';
+  if (selectedOrganization.value) return 'ORG';
+  return 'CUSTOMER';
+}
 
 onMounted(async () => {
   if (authStore.user?.customerId) {

@@ -20,19 +20,37 @@ export const useConfigStore = defineStore('config', {
   getters: {
     groupedConfigs: (state) => {
       const groups = {};
-      state.configs.forEach(config => {
-        const key = `${config.Category}_${config.Section}`;
+
+      // Sort configs by Section_Sort then Property_Sort
+      const sortedConfigs = [...state.configs].sort((a, b) => {
+        const sectionSortA = parseInt(a.Section_Sort || a.section_sort || 0);
+        const sectionSortB = parseInt(b.Section_Sort || b.section_sort || 0);
+        if (sectionSortA !== sectionSortB) return sectionSortA - sectionSortB;
+
+        const propSortA = parseInt(a.Property_Sort || a.property_sort || 0);
+        const propSortB = parseInt(b.Property_Sort || b.property_sort || 0);
+        return propSortA - propSortB;
+      });
+
+      sortedConfigs.forEach(config => {
+        // Handle both uppercase and lowercase column names from SQL Server
+        const section = config.section || config.Section || '';
+        const sectionSort = config.Section_Sort || config.section_sort || 0;
+        const key = `${sectionSort}_${section}`;
+
         if (!groups[key]) {
           groups[key] = {
-            category: config.Category,
-            section: config.Section,
-            sectionToolTip: config.SectionToolTip,
+            section: section,
+            sectionToolTip: config.sectiontooltip || config.SectionToolTip || '',
+            sectionSort: parseInt(sectionSort),
             items: [],
           };
         }
         groups[key].items.push(config);
       });
-      return Object.values(groups);
+
+      // Return groups sorted by sectionSort
+      return Object.values(groups).sort((a, b) => a.sectionSort - b.sectionSort);
     },
   },
 
