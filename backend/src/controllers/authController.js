@@ -8,43 +8,70 @@ authenticator.options = {
 };
 
 // Azure MFA API helper
-async function callAzureMfaApi(clientId, user, totp = null) {
+// Operations:
+//   - GetSetMfa (GET): Fetch existing MFA key for user
+//   - SetMfa (POST): Save new MFA key for user
+//   - UpdateMfaAuth (POST): Update last_auth timestamp for user
+async function callAzureMfaApi(operation, user, secret = null) {
   const url = new URL(`${process.env.MIDDLEWARE_URI_AZURE}/api/mfa`);
   url.searchParams.set('code', process.env.MIDDLEWARE_AZURE_MFA_AUTH);
-  url.searchParams.set('clientId', clientId);
   url.searchParams.set('user', user);
-  if (totp) {
-    url.searchParams.set('totp', totp);
+
+  const isGet = operation === 'GetSetMfa';
+  const isTimestampUpdate = operation === 'UpdateMfaAuth';
+
+  if (isTimestampUpdate) {
+    url.searchParams.set('timeStampOnly', 'true');
   }
 
   const fullUrl = url.toString();
   console.log('=== AZURE MFA API CALL ===');
+  console.log('Operation:', operation);
   console.log('URL:', fullUrl);
-  console.log('Auth Code:', process.env.MIDDLEWARE_AZURE_MFA_AUTH ? 'SET' : 'NOT SET');
+  console.log('Method:', isGet ? 'GET' : 'POST');
 
   try {
-    const response = await fetch(fullUrl);
-    
+    const fetchOptions = isGet
+      ? { method: 'GET' }
+      : {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user, secret })
+        };
+
+    const response = await fetch(fullUrl, fetchOptions);
+
     console.log('HTTP Status:', response.status);
     console.log('HTTP Status Text:', response.statusText);
-    
+
     const text = await response.text();
     console.log('Response Body:', text);
     console.log('Response Body Length:', text.length);
-    
-    // Handle empty or "no data" responses
-    if (!text || text.trim() === '' || text.toLowerCase().includes('no data')) {
-      console.log('Returning noData=true');
+
+    // Handle empty or "OK" responses (POST success)
+    if (!text || text.trim() === '' || text.trim() === '"OK"' || text.trim() === 'OK') {
+      console.log('Operation successful (empty or OK response)');
+      return { success: true };
+    }
+
+    // Handle plain text "no data" responses
+    if (text.toLowerCase().includes('no data') && !text.startsWith('{')) {
+      console.log('Returning noData=true (plain text response)');
       return { noData: true };
     }
-    
+
     const data = JSON.parse(text);
     console.log('Parsed JSON:', JSON.stringify(data));
-    
+
+    // Handle "No data" response from Azure as a valid "no MFA configured" state
     if (data.errorMsg) {
+      if (data.errorMsg.toLowerCase().includes('no data')) {
+        console.log('Azure returned "No data" - user has no MFA configured');
+        return { noData: true };
+      }
       throw new Error(data.errorMsg);
     }
-    
+
     return data;
   } catch (error) {
     console.error('Azure MFA API error:', error.message);
@@ -201,9 +228,9 @@ async function verifyMfa(req, res) {
       return res.status(401).json({ error: 'Invalid MFA token' });
     }
     
-    // Update last auth time via Azure API (call SetMfa with current timestamp)
+    // Update last auth time via Azure API (pass the mfa_key for record matching)
     try {
-      await callAzureMfaApi('UpdateMfaAuth', username, new Date().toISOString());
+      await callAzureMfaApi('UpdateMfaAuth', username, mfaData.key);
     } catch (error) {
       console.log('Failed to update MFA auth time:', error.message);
     }
