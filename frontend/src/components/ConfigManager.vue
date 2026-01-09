@@ -60,35 +60,24 @@
 
         <div class="config-items">
           <div v-for="config in group.items" :key="getConfigId(config)" class="config-item">
-            <div class="config-label">
-              <span class="property-name">{{ getProperty(config) }}</span>
-              <span v-if="getTooltip(config)" class="tooltip" :title="getTooltip(config)">?</span>
-            </div>
-
-            <div class="config-values">
-              <div class="value-group">
-                <label>Value</label>
-                <input
-                  v-if="!isPasswordField(config)"
-                  type="text"
-                  :value="getValue(config)"
-                  :placeholder="getPlaceholder(config)"
-                  @change="updateValue(config, $event.target.value, getCurrentLevel())"
-                  :disabled="!canEdit"
-                />
-                <input
-                  v-else
-                  type="password"
-                  :value="getValue(config)"
-                  @change="updateValue(config, $event.target.value, getCurrentLevel())"
-                  :disabled="!canEdit"
-                />
-              </div>
-            </div>
-
-            <div v-if="isNonDefaultTask(config)" class="actions">
-              <button @click="deleteConfig(getConfigId(config))" class="delete-btn" title="Remove Task">X</button>
-            </div>
+            <span class="property-name">{{ getProperty(config) }}</span>
+            <span v-if="getTooltip(config)" class="tooltip" :title="getTooltip(config)">?</span>
+            <input
+              v-if="!isPasswordField(config)"
+              type="text"
+              :value="getValue(config)"
+              :placeholder="getPlaceholder(config)"
+              @change="updateValue(config, $event.target.value, getCurrentLevel())"
+              :disabled="!canEdit"
+            />
+            <input
+              v-else
+              type="password"
+              :value="getValue(config)"
+              @change="updateValue(config, $event.target.value, getCurrentLevel())"
+              :disabled="!canEdit"
+            />
+            <button v-if="isNonDefaultTask(config)" @click="deleteConfig(getConfigId(config))" class="delete-btn" title="Remove Task">X</button>
           </div>
         </div>
       </div>
@@ -297,45 +286,63 @@ select {
 }
 
 .config-sections {
-  padding: 2rem;
+  padding: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (min-width: 1400px) {
+  .config-sections {
+    padding: 1rem 4rem;
+  }
+}
+
+@media (min-width: 1800px) {
+  .config-sections {
+    padding: 1rem 8rem;
+  }
 }
 
 .config-section {
   background: white;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .section-header {
   background: #0a5591;
   color: white;
-  padding: 1rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 4px 4px 0 0;
+  display: flex;
+  align-items: center;
 }
 
 .section-header h2 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
-.tooltip {
-  font-size: 0.9rem;
+.section-header .tooltip {
+  font-size: 0.8rem;
   opacity: 0.8;
   margin-left: 0.5rem;
 }
 
 .config-items {
-  padding: 1rem;
+  padding: 0.25rem 0.5rem;
 }
 
 .config-item {
   display: grid;
-  grid-template-columns: 1fr 2fr auto;
-  gap: 1rem;
-  padding: 1rem;
-  border-bottom: 1px solid #eee;
+  grid-template-columns: minmax(150px, 1fr) 2fr auto auto;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid #f0f0f0;
   align-items: center;
+  font-size: 0.875rem;
 }
 
 .config-item:last-child {
@@ -343,47 +350,38 @@ select {
 }
 
 .property-name {
-  font-weight: bold;
+  font-weight: 500;
+  color: #333;
 }
 
-.config-values {
-  display: flex;
-  gap: 1rem;
+.config-item .tooltip {
+  color: #888;
+  cursor: help;
+  font-size: 0.75rem;
 }
 
-.value-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  flex: 1;
-}
-
-.value-group label {
-  font-size: 0.8rem;
-  color: #666;
-}
-
-.value-group input,
-.value-group select {
-  padding: 0.5rem;
+.config-item input {
+  padding: 0.3rem 0.5rem;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: 3px;
+  font-size: 0.875rem;
 }
 
-.actions {
-  display: flex;
-  gap: 0.5rem;
+.config-item input:focus {
+  outline: none;
+  border-color: #0a5591;
 }
 
 .delete-btn {
-  padding: 0.5rem;
+  padding: 0.2rem 0.4rem;
   background: transparent;
   border: none;
   cursor: pointer;
-  font-size: 1.2rem;
+  font-size: 0.9rem;
+  color: #999;
 }
 
 .delete-btn:hover {
-  opacity: 0.7;
+  color: #c00;
 }
 </style>
