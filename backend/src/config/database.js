@@ -1,5 +1,8 @@
 const sql = require('mssql');
 require('dotenv').config();
+const { createLogger } = require('../utils/logger');
+
+const log = createLogger(__filename);
 
 // MojoPortal database connection (for user/role queries)
 const mojoConfig = {
@@ -61,15 +64,15 @@ async function queryMojo(queryString, params = {}) {
   try {
     const connection = await getMojoConnection();
     const request = connection.request();
-    
+
     Object.keys(params).forEach(key => {
       request.input(key, params[key]);
     });
-    
+
     const result = await request.query(queryString);
     return result;
   } catch (error) {
-    console.error('MojoPortal query error:', error);
+    log.error('MojoPortal query error', { err: error.message, code: error.code });
     throw error;
   }
 }
@@ -79,15 +82,15 @@ async function queryConfig(queryString, params = {}) {
   try {
     const connection = await getConfigConnection();
     const request = connection.request();
-    
+
     Object.keys(params).forEach(key => {
       request.input(key, params[key]);
     });
-    
+
     const result = await request.query(queryString);
     return result;
   } catch (error) {
-    console.error('Configurations database query error:', error);
+    log.error('Configurations database query error', { err: error.message, code: error.code });
     throw error;
   }
 }
@@ -101,15 +104,15 @@ async function execute(procedureName, params = {}) {
   try {
     const connection = await getConfigConnection();
     const request = connection.request();
-    
+
     Object.keys(params).forEach(key => {
       request.input(key, params[key]);
     });
-    
+
     const result = await request.execute(procedureName);
     return result;
   } catch (error) {
-    console.error('Stored procedure execution error:', error);
+    log.error('Stored procedure execution error', { procedure: procedureName, err: error.message, code: error.code });
     throw error;
   }
 }

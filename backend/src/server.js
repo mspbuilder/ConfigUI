@@ -6,12 +6,17 @@ const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
 const apiRoutes = require('./routes/api');
+const { createLogger, requestLogger } = require('./utils/logger');
 
+const log = createLogger(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Security middleware
 app.use(helmet());
+
+// Request logging with ID tracking
+app.use(requestLogger);
 
 // Rate limiting
 const limiter = rateLimit({
@@ -42,8 +47,9 @@ app.get('/health', (req, res) => {
 
 // Error handling
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ 
+  const reqLog = req.log || log;
+  reqLog.error('Unhandled error', { err: err.message, stack: err.stack });
+  res.status(500).json({
     error: 'Internal server error',
     message: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
@@ -56,8 +62,7 @@ app.use((req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV}`);
+  log.info('Server started', { port: PORT, env: process.env.NODE_ENV });
 });
 
 module.exports = app;
