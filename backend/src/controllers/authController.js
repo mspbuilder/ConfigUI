@@ -135,6 +135,7 @@ async function authenticateFromMojo(req, res) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
+      path: '/',
       maxAge: 4 * 60 * 60 * 1000
     });
 console.log('=== AUTH RESPONSE ===');
@@ -240,6 +241,7 @@ async function verifyMfa(req, res) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
+      path: '/',
       maxAge: 4 * 60 * 60 * 1000
     });
     
@@ -251,8 +253,8 @@ async function verifyMfa(req, res) {
 }
 
 async function logout(req, res) {
-  res.clearCookie('authToken');
-  res.clearCookie('mfaVerified');
+  res.clearCookie('authToken', { path: '/' });
+  res.clearCookie('mfaVerified', { path: '/' });
   res.json({ success: true });
 }
 
