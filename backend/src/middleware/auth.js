@@ -44,22 +44,29 @@ async function authenticate(req, res, next) {
 async function requireMFA(req, res, next) {
   try {
     const mfaToken = req.cookies.mfaToken;
-    
+
     if (!mfaToken) {
       return res.status(403).json({ error: 'MFA required', requireMfa: true });
     }
-    
+
     const decoded = jwt.verify(mfaToken, process.env.JWT_SECRET);
-    
-    // Check if MFA token is still valid (4 hours)
-    const now = Math.floor(Date.now() / 1000);
-    if (decoded.exp - now < 0) {
-      return res.status(403).json({ error: 'MFA expired', requireMfa: true });
+
+    // Ensure MFA token belongs to the authenticated user (prevents token theft)
+    if (decoded.username !== req.user.username) {
+      return res.status(403).json({ error: 'MFA token mismatch', requireMfa: true });
     }
-    
+
+    // Ensure the token has mfaVerified claim
+    if (!decoded.mfaVerified) {
+      return res.status(403).json({ error: 'Invalid MFA token', requireMfa: true });
+    }
+
     req.mfaVerified = true;
     next();
   } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(403).json({ error: 'MFA session expired', requireMfa: true });
+    }
     return res.status(403).json({ error: 'MFA verification failed', requireMfa: true });
   }
 }

@@ -236,15 +236,29 @@ async function verifyMfa(req, res) {
       console.log('Failed to update MFA auth time:', error.message);
     }
     
-    // Set MFA verified cookie
-    res.cookie('mfaVerified', 'true', {
+    // Set MFA verified cookie as signed JWT (not spoofable like a boolean)
+    const mfaToken = jwt.sign(
+      {
+        username: req.user.username,
+        mfaVerified: true,
+        verifiedAt: new Date().toISOString()
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRATION }
+    );
+
+    res.cookie('mfaToken', mfaToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
       maxAge: 4 * 60 * 60 * 1000
     });
-    
+
+    console.log('=== MFA VERIFY SUCCESS ===');
+    console.log('Username:', username);
+    console.log('MFA token set');
+
     res.json({ success: true });
   } catch (error) {
     console.error('MFA verification error:', error);
@@ -254,13 +268,30 @@ async function verifyMfa(req, res) {
 
 async function logout(req, res) {
   res.clearCookie('authToken', { path: '/' });
-  res.clearCookie('mfaVerified', { path: '/' });
+  res.clearCookie('mfaToken', { path: '/' });
   res.json({ success: true });
 }
 
 async function checkAuth(req, res) {
-  const mfaVerified = req.cookies.mfaVerified === 'true';
-  
+  // Verify MFA token is a valid signed JWT for this user (not spoofable)
+  let mfaVerified = false;
+  const mfaToken = req.cookies.mfaToken;
+
+  if (mfaToken) {
+    try {
+      const decoded = jwt.verify(mfaToken, process.env.JWT_SECRET);
+      // Ensure the MFA token belongs to the same user as the auth token
+      mfaVerified = decoded.mfaVerified && decoded.username === req.user.username;
+    } catch (error) {
+      // Invalid or expired MFA token
+      mfaVerified = false;
+    }
+  }
+
+  console.log('=== CHECK AUTH ===');
+  console.log('Username:', req.user.username);
+  console.log('MFA Verified:', mfaVerified);
+
   res.json({
     authenticated: true,
     mfaVerified,
