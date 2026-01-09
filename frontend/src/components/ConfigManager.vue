@@ -19,22 +19,22 @@
 
         <select v-model="selectedOrganization" @change="handleOrganizationChange">
           <option value="">Choose Organization</option>
-          <option v-for="org in configStore.organizations" :key="org" :value="org">
-            {{ org }}
+          <option v-for="org in configStore.organizations" :key="org.orgid" :value="org.Organization">
+            {{ org.Organization }}
           </option>
         </select>
 
         <select v-model="selectedSite" @change="handleSiteChange">
           <option value="">Choose Site</option>
-          <option v-for="site in configStore.sites" :key="site" :value="site">
-            {{ site }}
+          <option v-for="site in configStore.sites" :key="site.Site" :value="site.Site">
+            {{ site.Site }}
           </option>
         </select>
 
         <select v-model="selectedAgent" @change="handleAgentChange">
           <option value="">Choose Agent</option>
-          <option v-for="agent in configStore.agents" :key="agent" :value="agent">
-            {{ agent }}
+          <option v-for="agent in configStore.agents" :key="agent.id" :value="agent.Agent">
+            {{ agent.Agent }}
           </option>
         </select>
 
