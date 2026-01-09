@@ -14,6 +14,11 @@ async function getCustomerConfigs(req, res) {
       return res.status(400).json({ error: 'customerId and category are required' });
     }
 
+    // Ensure string types for all parameters
+    const orgString = organization ? String(organization) : '';
+    const siteString = site ? String(site) : '';
+    const agentString = agent ? String(agent) : '';
+
     // Use the stored procedure that matches ASCX behavior
     const result = await queryConfig(
       `EXEC GET_CONFIG_DATA_BY_CUSTID_CATEGORY_ORG_SITE_AGENT
@@ -25,9 +30,9 @@ async function getCustomerConfigs(req, res) {
       {
         customerId,
         category,
-        organization: organization || '',
-        site: site || '',
-        agent: agent || ''
+        organization: orgString,
+        site: siteString,
+        agent: agentString
       }
     );
 
@@ -216,9 +221,12 @@ async function getSites(req, res) {
       return res.status(400).json({ error: 'customerId and organization are required' });
     }
 
+    // Ensure organization is a string (not an object from JSON)
+    const orgString = typeof organization === 'string' ? organization : String(organization);
+
     const result = await queryConfig(
       `EXEC GET_SITES_BY_CUSTID_ORG @CUSTID = @customerId, @ORG = @organization`,
-      { customerId, organization }
+      { customerId, organization: orgString }
     );
 
     res.json({
@@ -226,7 +234,7 @@ async function getSites(req, res) {
       sites: result.recordset
     });
   } catch (error) {
-    reqLog.error('Get sites error', { err: error.message, customerId: req.query.customerId });
+    reqLog.error('Get sites error', { err: error.message, customerId: req.query.customerId, organization: req.query.organization });
     res.status(500).json({ error: 'Failed to retrieve sites' });
   }
 }
@@ -242,9 +250,13 @@ async function getAgents(req, res) {
       return res.status(400).json({ error: 'customerId, organization, and site are required' });
     }
 
+    // Ensure string types
+    const orgString = typeof organization === 'string' ? organization : String(organization);
+    const siteString = typeof site === 'string' ? site : String(site);
+
     const result = await queryConfig(
       `EXEC GET_AGENTS_BY_CUSTID_ORG_SITE @CustID = @customerId, @Org = @organization, @Site = @site`,
-      { customerId, organization, site }
+      { customerId, organization: orgString, site: siteString }
     );
 
     res.json({
@@ -252,7 +264,7 @@ async function getAgents(req, res) {
       agents: result.recordset
     });
   } catch (error) {
-    reqLog.error('Get agents error', { err: error.message, customerId: req.query.customerId });
+    reqLog.error('Get agents error', { err: error.message, customerId: req.query.customerId, organization: req.query.organization, site: req.query.site });
     res.status(500).json({ error: 'Failed to retrieve agents' });
   }
 }
