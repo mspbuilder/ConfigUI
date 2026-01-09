@@ -19,20 +19,15 @@ async function getCustomerConfigs(req, res) {
     const siteString = site ? String(site) : '';
     const agentString = agent ? String(agent) : '';
 
-    // Use the stored procedure that matches ASCX behavior
+    // Use positional parameters like ASCX does (SP params: @CustID, @CAT, @Org, @Site, @Agent)
     const result = await queryConfig(
-      `EXEC GET_CONFIG_DATA_BY_CUSTID_CATEGORY_ORG_SITE_AGENT
-        @CustID = @customerId,
-        @Category = @category,
-        @Org = @organization,
-        @Site = @site,
-        @Agent = @agent`,
+      `EXEC GET_CONFIG_DATA_BY_CUSTID_CATEGORY_ORG_SITE_AGENT @p1, @p2, @p3, @p4, @p5`,
       {
-        customerId,
-        category,
-        organization: orgString,
-        site: siteString,
-        agent: agentString
+        p1: customerId,
+        p2: category,
+        p3: orgString,
+        p4: siteString,
+        p5: agentString
       }
     );
 
@@ -57,9 +52,10 @@ async function getDefaultConfigs(req, res) {
       return res.status(400).json({ error: 'category is required' });
     }
 
+    // Use positional parameter like ASCX does
     const result = await queryConfig(
-      `EXEC GET_DEFAULT_CONFIG_DATA_BY_CATEGORY @Category = @category`,
-      { category }
+      `EXEC GET_DEFAULT_CONFIG_DATA_BY_CATEGORY @p1`,
+      { p1: category }
     );
 
     res.json({
@@ -80,8 +76,8 @@ async function getConfigById(req, res) {
     const { configId } = req.params;
 
     const result = await queryConfig(
-      `EXEC GET_CONFIG_DATA_BY_Configuration_Overrides_ID @ID = @configId`,
-      { configId }
+      `EXEC GET_CONFIG_DATA_BY_Configuration_Overrides_ID @p1`,
+      { p1: configId }
     );
 
     if (result.recordset.length === 0) {
@@ -100,6 +96,7 @@ async function getConfigById(req, res) {
 
 // Update config using the actual stored procedure from ASCX
 // Maps to: UPDATE_CONFIGURATION_OVERRIDES
+// Params: ConfigID, Value, Property, Level, Username
 async function updateConfig(req, res) {
   const reqLog = req.log || log;
   try {
@@ -114,20 +111,15 @@ async function updateConfig(req, res) {
       return res.status(400).json({ error: 'Invalid level. Must be one of: GLOBAL, CUSTOMER, ORG, SITE, AGENT' });
     }
 
-    // Use the stored procedure that matches ASCX behavior
+    // Use positional parameters like ASCX does
     await queryConfig(
-      `EXEC UPDATE_CONFIGURATION_OVERRIDES
-        @ConfigID = @configId,
-        @Value = @value,
-        @Property = @property,
-        @Level = @level,
-        @CurrentUserName = @username`,
+      `EXEC UPDATE_CONFIGURATION_OVERRIDES @p1, @p2, @p3, @p4, @p5`,
       {
-        configId,
-        value: value || '',
-        property: property || '',
-        level: upperLevel,
-        username: req.user.username
+        p1: configId,
+        p2: value || '',
+        p3: property || '',
+        p4: upperLevel,
+        p5: req.user.username
       }
     );
 
@@ -141,18 +133,18 @@ async function updateConfig(req, res) {
 
 // Delete config using the actual stored procedure from ASCX
 // Maps to: DELETE_OVERRIDE_BY_CONFIGURATION_OVERRIDE_ID
+// Params: ConfigID, Username
 async function deleteConfig(req, res) {
   const reqLog = req.log || log;
   try {
     const { configId } = req.params;
 
+    // Use positional parameters like ASCX does
     await queryConfig(
-      `EXEC DELETE_OVERRIDE_BY_CONFIGURATION_OVERRIDE_ID
-        @ConfigID = @configId,
-        @CurrentUserName = @username`,
+      `EXEC DELETE_OVERRIDE_BY_CONFIGURATION_OVERRIDE_ID @p1, @p2`,
       {
-        configId,
-        username: req.user.username
+        p1: configId,
+        p2: req.user.username
       }
     );
 
@@ -195,9 +187,10 @@ async function getOrganizations(req, res) {
     // ASCX uses first 6 chars of customerId
     const custIdShort = customerId.substring(0, 6);
 
+    // Use positional parameter like ASCX does
     const result = await queryConfig(
-      `EXEC GET_ORGS_BY_CUSTID @CustID = @customerId`,
-      { customerId: custIdShort }
+      `EXEC GET_ORGS_BY_CUSTID @p1`,
+      { p1: custIdShort }
     );
 
     res.json({
@@ -224,9 +217,10 @@ async function getSites(req, res) {
     // Ensure organization is a string (not an object from JSON)
     const orgString = typeof organization === 'string' ? organization : String(organization);
 
+    // Use positional parameters like ASCX does
     const result = await queryConfig(
-      `EXEC GET_SITES_BY_CUSTID_ORG @CUSTID = @customerId, @ORG = @organization`,
-      { customerId, organization: orgString }
+      `EXEC GET_SITES_BY_CUSTID_ORG @p1, @p2`,
+      { p1: customerId, p2: orgString }
     );
 
     res.json({
@@ -254,9 +248,10 @@ async function getAgents(req, res) {
     const orgString = typeof organization === 'string' ? organization : String(organization);
     const siteString = typeof site === 'string' ? site : String(site);
 
+    // Use positional parameters like ASCX does
     const result = await queryConfig(
-      `EXEC GET_AGENTS_BY_CUSTID_ORG_SITE @CustID = @customerId, @Org = @organization, @Site = @site`,
-      { customerId, organization: orgString, site: siteString }
+      `EXEC GET_AGENTS_BY_CUSTID_ORG_SITE @p1, @p2, @p3`,
+      { p1: customerId, p2: orgString, p3: siteString }
     );
 
     res.json({
@@ -288,6 +283,7 @@ async function getCustomers(req, res) {
 
 // Create new maintenance task
 // Maps to: ADD_RMM_MAINTENANCE_TASK
+// Params: CustID, OrgID, Org, OrgCode, Site, AgentID, Agent, NewSection, CurrentUserName
 async function createMaintenanceTask(req, res) {
   const reqLog = req.log || log;
   try {
@@ -306,27 +302,19 @@ async function createMaintenanceTask(req, res) {
       return res.status(400).json({ error: 'section (task name) is required' });
     }
 
+    // Use positional parameters
     await queryConfig(
-      `EXEC ADD_RMM_MAINTENANCE_TASK
-        @CustID = @customerId,
-        @OrgID = @organizationId,
-        @Org = @organization,
-        @OrgCode = @organizationCode,
-        @Site = @site,
-        @AgentID = @agentId,
-        @Agent = @agent,
-        @NewSection = @section,
-        @CurrentUserName = @username`,
+      `EXEC ADD_RMM_MAINTENANCE_TASK @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9`,
       {
-        customerId: customerId || '',
-        organizationId: organizationId || '',
-        organization: organization || '',
-        organizationCode: organizationCode || '',
-        site: site || '',
-        agentId: agentId || '',
-        agent: agent || '',
-        section,
-        username: req.user.username
+        p1: customerId || '',
+        p2: organizationId || '',
+        p3: organization || '',
+        p4: organizationCode || '',
+        p5: site || '',
+        p6: agentId || '',
+        p7: agent || '',
+        p8: section,
+        p9: req.user.username
       }
     );
 
@@ -345,9 +333,10 @@ async function getDataTypeValues(req, res) {
   try {
     const { dataTypeId } = req.params;
 
+    // Use positional parameter
     const result = await queryConfig(
-      `EXEC GET_CONFIG_VALUES_BY_DATATYPE_ID @DataTypeID = @dataTypeId`,
-      { dataTypeId }
+      `EXEC GET_CONFIG_VALUES_BY_DATATYPE_ID @p1`,
+      { p1: dataTypeId }
     );
 
     res.json({
