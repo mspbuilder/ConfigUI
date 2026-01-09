@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<configuration>
+  <appSettings>
+    <!-- URL where Vue 3 SPA is hosted -->
+    <add key="VueAppUrl" value="http://localhost:5173" />
+    <!-- Change to production URL: https://config.mspbuilder.com -->
+    
+    <!-- JWT Secret - MUST match backend .env JWT_SECRET -->
+    <add key="JwtSecret" value="your-super-secret-jwt-key-change-this" />
+  </appSettings>
+</configuration>
+
+<!-- 
+INSTALLATION INSTRUCTIONS:
+
+1. Add to MojoPortal Web.config appSettings section:
+   <add key="VueAppUrl" value="http://localhost:5173" />
+   <add key="JwtSecret" value="your-secret-key-here" />
+
+2. Copy ConfigLauncher.ascx to MojoPortal:
+   /Data/Sites/[SiteID]/skins/[SkinName]/ConfigLauncher.ascx
+
+3. Add to MojoPortal page via HTML Content module or custom module wrapper
+
+4. Ensure JWT_SECRET in backend .env matches JwtSecret in Web.config
+
+5. Create roles in MojoPortal admin:
+   - ConfigAdmin
+   - MSPBEmployee
+   
+6. Assign roles to users who need config access
+
+NO NUGET PACKAGES REQUIRED - Uses only .NET Framework built-in libraries:
+- System.Security.Cryptography (HMACSHA256)
+- System.Text (Encoding)
+- Built-in MojoPortal classes (SiteUser, SiteUtils)
+
+The ASCX generates JWT tokens using pure C# without external dependencies.
+-->
+

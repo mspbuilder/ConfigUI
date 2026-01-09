@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Environment files (contain secrets)
+.env
+backend/.env
+
+# SSL certificates
+ssl/
+
+# Build outputs
+frontend/dist/
+*.tar.gz
+
+# Docker
+.docker/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Certbot
+webroot/
