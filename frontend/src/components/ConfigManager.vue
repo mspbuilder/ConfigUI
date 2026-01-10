@@ -85,16 +85,19 @@
 
         <div class="config-items">
           <div v-for="config in group.items" :key="getConfigId(config)" class="config-item">
-            <span class="property-name">{{ getProperty(config) }}</span>
-            <span v-if="getTooltip(config)" class="tooltip" :title="getTooltip(config)">?</span>
-            <input
+            <div class="label-cell">
+              <span class="property-name">{{ getProperty(config) }}</span>
+              <span v-if="getTooltip(config)" class="tooltip" :title="getTooltip(config)">?</span>
+            </div>
+            <textarea
               v-if="!isPasswordField(config)"
-              type="text"
               :value="getValue(config)"
               :placeholder="getPlaceholder(config)"
               @change="updateValue(config, $event.target.value, getCurrentLevel())"
+              @input="autoResize($event)"
               :disabled="!canEdit"
-            />
+              rows="1"
+            ></textarea>
             <input
               v-else
               type="password"
@@ -178,6 +181,12 @@ function isPasswordField(config) {
 
 function isNonDefaultTask(config) {
   return config.NonDefaultTask === 'True' || config.NonDefaultTask === true;
+}
+
+function autoResize(event) {
+  const textarea = event.target;
+  textarea.style.height = 'auto';
+  textarea.style.height = textarea.scrollHeight + 'px';
 }
 
 function getCurrentLevel() {
@@ -442,16 +451,23 @@ select {
 
 .config-item {
   display: grid;
-  grid-template-columns: 180px 1fr auto auto;
+  grid-template-columns: 180px 1fr auto;
   gap: 0.5rem;
   padding: 0.35rem 0.5rem;
   border-bottom: 1px solid #f0f0f0;
-  align-items: center;
+  align-items: start;
   font-size: 0.875rem;
 }
 
 .config-item:last-child {
   border-bottom: none;
+}
+
+.label-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding-top: 0.3rem;
 }
 
 .property-name {
@@ -465,7 +481,8 @@ select {
   font-size: 0.75rem;
 }
 
-.config-item input {
+.config-item input,
+.config-item textarea {
   padding: 0.3rem 0.5rem;
   border: 1px solid #ddd;
   border-radius: 3px;
@@ -473,9 +490,18 @@ select {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
+  font-family: inherit;
 }
 
-.config-item input:focus {
+.config-item textarea {
+  resize: none;
+  overflow: hidden;
+  min-height: 1.75rem;
+  line-height: 1.4;
+}
+
+.config-item input:focus,
+.config-item textarea:focus {
   outline: none;
   border-color: #0a5591;
 }
@@ -521,10 +547,10 @@ select {
 
 @media (max-width: 600px) {
   .config-item {
-    grid-template-columns: 1fr auto auto;
+    grid-template-columns: 1fr auto;
   }
 
-  .config-item .property-name {
+  .config-item .label-cell {
     grid-column: 1 / -1;
     margin-bottom: 0.25rem;
   }
