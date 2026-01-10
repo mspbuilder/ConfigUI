@@ -53,18 +53,18 @@ export const useConfigStore = defineStore('config', {
       return Object.values(groups).sort((a, b) => a.sectionSort - b.sectionSort);
     },
 
-    // Get category names for dropdown display (sorted by sort_order)
+    // Get category display names for dropdown (sorted by sort_order)
     categoryNames: (state) => {
       return [...state.categories]
         .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-        .map(cat => cat.f_name || cat);
+        .map(cat => cat.file_desc || cat);
     },
 
     // Get metadata for the currently selected category
     selectedCategoryMeta: (state) => {
       if (!state.selectedCategory) return null;
       return state.categories.find(cat =>
-        (cat.f_name || cat) === state.selectedCategory
+        (cat.file_desc || cat) === state.selectedCategory
       ) || null;
     },
   },
