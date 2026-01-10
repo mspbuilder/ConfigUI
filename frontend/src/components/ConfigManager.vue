@@ -344,7 +344,8 @@ header h1 {
 
 .filter-row {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   align-items: center;
 }
 
@@ -352,13 +353,13 @@ select {
   padding: 0.5rem;
   border: 1px solid #ddd;
   border-radius: 4px;
-  flex: 1;
+  flex: 1 1 180px;
+  min-width: 150px;
 }
 
 .customer-select {
   border-color: #0a5591;
   background-color: #f0f7ff;
-  flex: 1;
 }
 
 .load-btn {
@@ -369,6 +370,8 @@ select {
   border-radius: 4px;
   cursor: pointer;
   font-weight: bold;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .load-btn:disabled {
@@ -439,7 +442,7 @@ select {
 
 .config-item {
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) 2fr auto auto;
+  grid-template-columns: 180px 1fr auto auto;
   gap: 0.5rem;
   padding: 0.35rem 0.5rem;
   border-bottom: 1px solid #f0f0f0;
@@ -467,6 +470,9 @@ select {
   border: 1px solid #ddd;
   border-radius: 3px;
   font-size: 0.875rem;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .config-item input:focus {
@@ -511,5 +517,30 @@ select {
 .toast.error {
   background: #dc2626;
   color: white;
+}
+
+@media (max-width: 600px) {
+  .config-item {
+    grid-template-columns: 1fr auto auto;
+  }
+
+  .config-item .property-name {
+    grid-column: 1 / -1;
+    margin-bottom: 0.25rem;
+  }
+
+  .filters {
+    padding: 0.75rem 1rem;
+  }
+
+  header {
+    padding: 0.75rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  header h1 {
+    font-size: 1.25rem;
+  }
 }
 </style>
