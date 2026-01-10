@@ -12,7 +12,7 @@
       <div class="filter-row">
         <select v-model="selectedCategory" @change="handleCategoryChange">
           <option value="">Choose Category</option>
-          <option v-for="cat in configStore.categories" :key="cat" :value="cat">
+          <option v-for="cat in configStore.categoryNames" :key="cat" :value="cat">
             {{ cat }}
           </option>
         </select>
@@ -52,6 +52,11 @@
     <div v-else-if="configStore.error" class="error">{{ configStore.error }}</div>
 
     <div v-else class="config-sections">
+      <AddSectionControl
+        :custom-sections-allowed="customSectionsAllowed"
+        @add-section="handleAddSection"
+      />
+
       <div
         v-for="group in configStore.groupedConfigs"
         :key="group.section"
@@ -94,6 +99,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useConfigStore } from '../stores/config';
+import AddSectionControl from './AddSectionControl.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -156,6 +162,26 @@ function getCurrentLevel() {
   return 'CUSTOMER';
 }
 
+// Check if current category allows custom sections
+const customSectionsAllowed = computed(() => {
+  return configStore.selectedCategoryMeta?.custom_sections_allowed ?? false;
+});
+
+async function handleAddSection(sectionName) {
+  try {
+    const result = await configStore.createSection(sectionName);
+    if (result?.blocked) {
+      showToast('Section creation blocked - database is in read-only mode', 'warning');
+    } else if (result?.stub) {
+      showToast(`Section "${sectionName}" - ${result.message}`, 'info');
+    } else {
+      showToast(`Section "${sectionName}" created`, 'info');
+    }
+  } catch (error) {
+    showToast('Failed to create section', 'error');
+  }
+}
+
 onMounted(async () => {
   if (authStore.user?.customerId) {
     configStore.setSelectedCustomerId(authStore.user.customerId);
@@ -197,7 +223,6 @@ async function loadData() {
 async function updateValue(config, value, level) {
   try {
     const id = getConfigId(config);
-    console.log('updateValue config:', config, 'extracted id:', id);
     if (!id) {
       showToast('Cannot update: missing config ID', 'error');
       return;

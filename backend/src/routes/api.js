@@ -42,6 +42,9 @@ router.post('/configs/tasks', authenticate, requireMFA, async (req, res, next) =
   roleMiddleware(req, res, next);
 }, configController.createMaintenanceTask);
 
+// Create custom section
+router.post('/sections', authenticate, requireMFA, configController.createSection);
+
 // Dropdown data routes
 router.get('/categories', authenticate, requireMFA, configController.getCategories);
 router.get('/organizations', authenticate, requireMFA, configController.getOrganizations);

@@ -184,16 +184,21 @@ async function deleteConfig(req, res) {
   }
 }
 
-// Get categories using stored procedure
-// Maps to: GET_DEFAULT_CATEGORIES
+// Get categories from Config.File_Spec
+// Returns full category objects with f_name, sort_order, custom_sections_allowed
 async function getCategories(req, res) {
   const reqLog = req.log || log;
   try {
-    const result = await queryConfig(`EXEC GET_DEFAULT_CATEGORIES`, {});
+    const result = await queryConfig(
+      `SELECT file_spec_id, f_name, file_desc, sort_order, custom_sections_allowed
+       FROM Config.File_Spec
+       ORDER BY sort_order`,
+      {}
+    );
 
     res.json({
       success: true,
-      categories: result.recordset.map(r => r.Category || r.category)
+      categories: result.recordset
     });
   } catch (error) {
     reqLog.error('Get categories error', { err: error.message });
@@ -358,6 +363,46 @@ async function createMaintenanceTask(req, res) {
   }
 }
 
+// Create a custom section for a category
+// Requires: category (file_spec f_name), sectionName, and context (customerId, org, site, agent)
+async function createSection(req, res) {
+  const reqLog = req.log || log;
+  try {
+    const { category, sectionName, customerId, organization, site, agent } = req.body;
+
+    if (!category || !sectionName) {
+      return res.status(400).json({ error: 'category and sectionName are required' });
+    }
+
+    // TODO: Replace with actual stored procedure once created
+    // For now, this is a stub that logs the intent
+    const sql = `-- STUB: INSERT custom section
+      -- Category: @p1, Section: @p2, CustomerId: @p3, Org: @p4, Site: @p5, Agent: @p6, User: @p7`;
+    const params = {
+      p1: category,
+      p2: sectionName,
+      p3: customerId || '',
+      p4: organization || '',
+      p5: site || '',
+      p6: agent || '',
+      p7: req.user.username
+    };
+
+    if (READ_ONLY_MODE) {
+      logBlockedWrite(reqLog, 'CREATE_SECTION', sql, params);
+      return res.json({ success: true, blocked: true, message: 'Write blocked (read-only mode)' });
+    }
+
+    // TODO: Execute actual SQL/SP when ready
+    reqLog.info('Section creation requested (stub)', params);
+
+    res.json({ success: true, stub: true, message: 'Section creation not yet implemented in database' });
+  } catch (error) {
+    reqLog.error('Create section error', { err: error.message });
+    res.status(500).json({ error: 'Failed to create section' });
+  }
+}
+
 // Get datatype values for dropdown
 // Maps to: GET_CONFIG_VALUES_BY_DATATYPE_ID
 async function getDataTypeValues(req, res) {
@@ -393,5 +438,6 @@ module.exports = {
   getAgents,
   getCustomers,
   createMaintenanceTask,
+  createSection,
   getDataTypeValues
 };

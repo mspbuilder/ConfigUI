@@ -70,6 +70,11 @@ export default {
     return api.delete(`/configs/${configId}`);
   },
   
+  // Sections
+  createSection(data) {
+    return api.post('/sections', data);
+  },
+
   // Dropdowns
   getCategories(customerId) {
     return api.get('/categories', { params: { customerId } });

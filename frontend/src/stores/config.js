@@ -4,12 +4,12 @@ import api from '../services/api';
 export const useConfigStore = defineStore('config', {
   state: () => ({
     configs: [],
-    categories: [],
+    categories: [],           // Array of category objects: { f_name, sort_order, custom_sections_allowed, ... }
     organizations: [],
     sites: [],
     agents: [],
     selectedCustomerId: null,
-    selectedCategory: null,
+    selectedCategory: null,   // The selected f_name value
     selectedOrganization: null,
     selectedSite: null,
     selectedAgent: null,
@@ -51,6 +51,21 @@ export const useConfigStore = defineStore('config', {
 
       // Return groups sorted by sectionSort
       return Object.values(groups).sort((a, b) => a.sectionSort - b.sectionSort);
+    },
+
+    // Get category names for dropdown display (sorted by sort_order)
+    categoryNames: (state) => {
+      return [...state.categories]
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+        .map(cat => cat.f_name || cat);
+    },
+
+    // Get metadata for the currently selected category
+    selectedCategoryMeta: (state) => {
+      if (!state.selectedCategory) return null;
+      return state.categories.find(cat =>
+        (cat.f_name || cat) === state.selectedCategory
+      ) || null;
     },
   },
 
@@ -150,6 +165,30 @@ export const useConfigStore = defineStore('config', {
         return { blocked: false };
       } catch (error) {
         this.error = error.response?.data?.error || 'Failed to delete configuration';
+        throw error;
+      }
+    },
+
+    async createSection(sectionName) {
+      try {
+        const response = await api.createSection({
+          category: this.selectedCategory,
+          sectionName,
+          customerId: this.selectedCustomerId,
+          organization: this.selectedOrganization,
+          site: this.selectedSite,
+          agent: this.selectedAgent
+        });
+        if (response.data.blocked) {
+          return { blocked: true, message: response.data.message };
+        }
+        if (response.data.stub) {
+          return { stub: true, message: response.data.message };
+        }
+        await this.loadConfigs();
+        return { success: true };
+      } catch (error) {
+        this.error = error.response?.data?.error || 'Failed to create section';
         throw error;
       }
     },
