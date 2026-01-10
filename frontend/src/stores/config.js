@@ -8,6 +8,7 @@ export const useConfigStore = defineStore('config', {
     organizations: [],
     sites: [],
     agents: [],
+    customers: [],            // Admin only: list of all customers for dropdown
     selectedCustomerId: null,
     selectedCategory: null,   // The selected f_name value
     selectedOrganization: null,
@@ -70,6 +71,16 @@ export const useConfigStore = defineStore('config', {
   },
 
   actions: {
+    async loadCustomers() {
+      try {
+        const response = await api.getCustomers();
+        this.customers = response.data.customers || [];
+      } catch (error) {
+        this.customers = [];
+        throw error;
+      }
+    },
+
     async loadCategories(customerId) {
       try {
         const response = await api.getCategories(customerId);

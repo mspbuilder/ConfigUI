@@ -10,6 +10,22 @@
 
     <div class="filters">
       <div class="filter-row">
+        <select
+          v-if="authStore.isAdmin"
+          v-model="selectedCustomer"
+          @change="handleCustomerChange"
+          class="customer-select"
+        >
+          <option value="">Choose Customer</option>
+          <option
+            v-for="cust in configStore.customers"
+            :key="cust.CustomerID"
+            :value="cust.CustomerID"
+          >
+            {{ cust.CustomerName || cust.CustomerID }}
+          </option>
+        </select>
+
         <select v-model="selectedCategory" @change="handleCategoryChange">
           <option value="">Choose Category</option>
           <option v-for="cat in configStore.categoryNames" :key="cat" :value="cat">
@@ -105,6 +121,7 @@ const router = useRouter();
 const authStore = useAuthStore();
 const configStore = useConfigStore();
 
+const selectedCustomer = ref('');
 const selectedCategory = ref('');
 const selectedOrganization = ref('');
 const selectedSite = ref('');
@@ -122,6 +139,14 @@ function showToast(message, type = 'info', duration = 3000) {
 const canEdit = computed(() => {
   // Add role check logic here
   return true;
+});
+
+// Get the effective customer ID (admin-selected or user's own)
+const effectiveCustomerId = computed(() => {
+  if (authStore.isAdmin && selectedCustomer.value) {
+    return selectedCustomer.value;
+  }
+  return authStore.user?.customerId;
 });
 
 // Helper functions to handle both uppercase and lowercase column names from SQL Server
@@ -183,12 +208,33 @@ async function handleAddSection(sectionName) {
 }
 
 onMounted(async () => {
-  if (authStore.user?.customerId) {
+  // Fetch user roles to determine admin status
+  await authStore.fetchUserRoles();
+
+  if (authStore.isAdmin) {
+    // Admin users: load customer list and wait for selection
+    await configStore.loadCustomers();
+  } else if (authStore.user?.customerId) {
+    // Normal users: use their associated customerId
     configStore.setSelectedCustomerId(authStore.user.customerId);
     await configStore.loadCategories(authStore.user.customerId);
     await configStore.loadOrganizations(authStore.user.customerId);
   }
 });
+
+async function handleCustomerChange() {
+  // Reset dependent selections when customer changes
+  selectedCategory.value = '';
+  selectedOrganization.value = '';
+  selectedSite.value = '';
+  selectedAgent.value = '';
+
+  if (selectedCustomer.value) {
+    configStore.setSelectedCustomerId(selectedCustomer.value);
+    await configStore.loadCategories(selectedCustomer.value);
+    await configStore.loadOrganizations(selectedCustomer.value);
+  }
+}
 
 async function handleCategoryChange() {
   configStore.setSelectedCategory(selectedCategory.value);
@@ -196,16 +242,16 @@ async function handleCategoryChange() {
 
 async function handleOrganizationChange() {
   configStore.setSelectedOrganization(selectedOrganization.value);
-  if (selectedOrganization.value) {
-    await configStore.loadSites(authStore.user.customerId, selectedOrganization.value);
+  if (selectedOrganization.value && effectiveCustomerId.value) {
+    await configStore.loadSites(effectiveCustomerId.value, selectedOrganization.value);
   }
 }
 
 async function handleSiteChange() {
   configStore.setSelectedSite(selectedSite.value);
-  if (selectedSite.value) {
+  if (selectedSite.value && effectiveCustomerId.value) {
     await configStore.loadAgents(
-      authStore.user.customerId,
+      effectiveCustomerId.value,
       selectedOrganization.value,
       selectedSite.value
     );
@@ -306,6 +352,12 @@ select {
   padding: 0.5rem;
   border: 1px solid #ddd;
   border-radius: 4px;
+  flex: 1;
+}
+
+.customer-select {
+  border-color: #0a5591;
+  background-color: #f0f7ff;
   flex: 1;
 }
 

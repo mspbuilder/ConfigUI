@@ -88,4 +88,14 @@ export default {
   getAgents(customerId, organization, site) {
     return api.get('/agents', { params: { customerId, organization, site } });
   },
+
+  // Admin - get all customers for dropdown
+  getCustomers() {
+    return api.get('/customers');
+  },
+
+  // Get current user's roles
+  getUserRoles() {
+    return api.get('/auth/roles');
+  },
 };

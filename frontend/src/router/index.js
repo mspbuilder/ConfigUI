@@ -37,7 +37,7 @@ router.beforeEach(async (to, from, next) => {
       window.history.replaceState({}, document.title, window.location.pathname);
     } catch (error) {
       console.error('MojoPortal authentication failed:', error);
-      alert('Authentication failed. Please try again from MojoPortal.');
+      alert('Authentication failed. Please access direclty from mspbuilder.com.');
       window.close();
       return;
     }

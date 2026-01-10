@@ -302,10 +302,35 @@ async function checkAuth(req, res) {
   });
 }
 
+async function getUserRoles(req, res) {
+  const reqLog = req.log || log;
+  try {
+    const result = await queryMojo(
+      `SELECT r.RoleName, r.DisplayName
+       FROM mp_UserRoles ur
+       JOIN mp_Roles r ON ur.RoleID = r.RoleID
+       WHERE ur.UserID = @userId`,
+      { userId: req.user.userId }
+    );
+
+    const roles = result.recordset.map(r => r.RoleName);
+    reqLog.debug('User roles fetched', { username: req.user.username, roles });
+
+    res.json({
+      success: true,
+      roles
+    });
+  } catch (error) {
+    reqLog.error('Get user roles error', { err: error.message, userId: req.user.userId });
+    res.status(500).json({ error: 'Failed to retrieve user roles' });
+  }
+}
+
 module.exports = {
   authenticateFromMojo,
   generateMfa,
   verifyMfa,
   logout,
-  checkAuth
+  checkAuth,
+  getUserRoles
 };

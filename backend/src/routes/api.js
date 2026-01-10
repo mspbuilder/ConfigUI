@@ -9,6 +9,7 @@ const router = express.Router();
 router.post('/auth/mojo-login', authController.authenticateFromMojo);
 router.post('/auth/logout', authenticate, authController.logout);
 router.get('/auth/check', authenticate, authController.checkAuth);
+router.get('/auth/roles', authenticate, requireMFA, authController.getUserRoles);
 
 // MFA routes
 router.post('/auth/mfa/generate', authenticate, authController.generateMfa);

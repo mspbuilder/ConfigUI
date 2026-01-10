@@ -8,6 +8,8 @@ export const useAuthStore = defineStore('auth', {
     mfaVerified: false,
     loading: false,
     error: null,
+    roles: [],
+    isAdmin: false,
   }),
 
   actions: {
@@ -64,6 +66,19 @@ export const useAuthStore = defineStore('auth', {
         throw error;
       } finally {
         this.loading = false;
+      }
+    },
+
+    async fetchUserRoles() {
+      try {
+        const response = await api.getUserRoles();
+        this.roles = response.data.roles || [];
+        this.isAdmin = this.roles.includes('MSPB_Employees');
+        return this.roles;
+      } catch (error) {
+        this.roles = [];
+        this.isAdmin = false;
+        return [];
       }
     },
   },
