@@ -186,12 +186,12 @@ async function deleteConfig(req, res) {
 }
 
 // Get categories from Config.File_Spec
-// Returns full category objects with f_name, sort_order, custom_sections_allowed
+// Returns full category objects including legacy_category_name for SP/cfg_overrides compatibility
 async function getCategories(req, res) {
   const reqLog = req.log || log;
   try {
     const result = await queryConfig(
-      `SELECT file_spec_id, f_name, file_desc, sort_order, custom_sections_allowed
+      `SELECT file_spec_id, f_name, file_desc, legacy_category_name, sort_order, custom_sections_allowed
        FROM Config.File_Spec
        ORDER BY sort_order`,
       {}
