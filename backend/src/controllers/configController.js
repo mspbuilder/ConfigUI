@@ -1,4 +1,4 @@
-const { queryConfig } = require('../config/database');
+const { queryConfig, sql } = require('../config/database');
 const { createLogger } = require('../utils/logger');
 
 const log = createLogger(__filename);
@@ -31,15 +31,16 @@ async function getCustomerConfigs(req, res) {
     const siteString = site ? String(site) : '';
     const agentString = agent ? String(agent) : '';
 
-    // Use positional parameters like ASCX does (SP params: @CustID, @CAT, @Org, @Site, @Agent)
+    // Use positional parameters with explicit VARCHAR types to match SP definition
+    // SP params: @CUSTID varchar(10), @CAT varchar(100), @ORG varchar(100), @SITE varchar(255), @AGENT varchar(255)
     const result = await queryConfig(
       `EXEC GET_CONFIG_DATA_BY_CUSTID_CATEGORY_ORG_SITE_AGENT @p1, @p2, @p3, @p4, @p5`,
       {
-        p1: customerId,
-        p2: category,
-        p3: orgString,
-        p4: siteString,
-        p5: agentString
+        p1: { type: sql.VarChar(10), value: customerId },
+        p2: { type: sql.VarChar(100), value: category },
+        p3: { type: sql.VarChar(100), value: orgString },
+        p4: { type: sql.VarChar(255), value: siteString },
+        p5: { type: sql.VarChar(255), value: agentString }
       }
     );
 

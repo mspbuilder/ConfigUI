@@ -78,13 +78,21 @@ async function queryMojo(queryString, params = {}) {
 }
 
 // Query Configurations database (configs, MFA)
+// Params can be either simple values (type inferred) or objects with { type, value }
 async function queryConfig(queryString, params = {}) {
   try {
     const connection = await getConfigConnection();
     const request = connection.request();
 
     Object.keys(params).forEach(key => {
-      request.input(key, params[key]);
+      const param = params[key];
+      if (param && typeof param === 'object' && param.type !== undefined) {
+        // Typed parameter: { type: sql.VarChar(100), value: 'string' }
+        request.input(key, param.type, param.value);
+      } else {
+        // Simple value - let driver infer type
+        request.input(key, param);
+      }
     });
 
     const result = await request.query(queryString);
