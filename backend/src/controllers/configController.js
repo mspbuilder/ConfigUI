@@ -207,8 +207,7 @@ async function getCategories(req, res) {
   }
 }
 
-// Get organizations using stored procedure
-// Maps to: GET_ORGS_BY_CUSTID
+// Get organizations from Config.Cfg_UI_Cust_Orgs view
 async function getOrganizations(req, res) {
   const reqLog = req.log || log;
   try {
@@ -221,10 +220,9 @@ async function getOrganizations(req, res) {
     // ASCX uses first 6 chars of customerId
     const custIdShort = customerId.substring(0, 6);
 
-    // Use positional parameter like ASCX does
     const result = await queryConfig(
-      `EXEC GET_ORGS_BY_CUSTID @p1`,
-      { p1: custIdShort }
+      `SELECT orgid, orgcode, orgname FROM Config.Cfg_UI_Cust_Orgs WHERE cid = @cid ORDER BY orgname`,
+      { cid: custIdShort }
     );
 
     res.json({

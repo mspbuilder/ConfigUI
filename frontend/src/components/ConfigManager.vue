@@ -35,8 +35,8 @@
 
         <select v-model="selectedOrganization" @change="handleOrganizationChange">
           <option value="">Choose Organization</option>
-          <option v-for="org in configStore.organizations" :key="org.orgid" :value="org.Organization">
-            {{ org.Organization }}
+          <option v-for="org in configStore.organizations" :key="org.orgid" :value="org.orgname">
+            {{ org.orgname }}
           </option>
         </select>
 
