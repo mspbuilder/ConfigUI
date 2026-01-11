@@ -78,12 +78,13 @@
         :key="group.section"
         class="config-section"
       >
-        <div class="section-header">
+        <div class="section-header" :class="{ collapsed: !isSectionExpanded(group.section) }" @click="toggleSection(group.section)">
+          <span class="chevron" :class="{ expanded: isSectionExpanded(group.section) }">&#9658;</span>
           <h2>{{ group.section }}</h2>
           <span v-if="group.sectionToolTip" class="tooltip">{{ group.sectionToolTip }}</span>
         </div>
 
-        <div class="config-items">
+        <div class="config-items" v-show="isSectionExpanded(group.section)">
           <div v-for="config in group.items" :key="getConfigId(config)" class="config-item">
             <div class="label-cell">
               <span class="property-name">{{ getProperty(config) }}</span>
@@ -129,6 +130,23 @@ const selectedCategory = ref('');
 const selectedOrganization = ref('');
 const selectedSite = ref('');
 const selectedAgent = ref('');
+
+// Track expanded sections - empty Set means all collapsed by default
+const expandedSections = ref(new Set());
+
+function toggleSection(sectionName) {
+  if (expandedSections.value.has(sectionName)) {
+    expandedSections.value.delete(sectionName);
+  } else {
+    expandedSections.value.add(sectionName);
+  }
+  // Trigger reactivity
+  expandedSections.value = new Set(expandedSections.value);
+}
+
+function isSectionExpanded(sectionName) {
+  return expandedSections.value.has(sectionName);
+}
 
 const toast = reactive({ show: false, message: '', type: 'info' });
 
@@ -431,6 +449,27 @@ select {
   border-radius: 4px 4px 0 0;
   display: flex;
   align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.section-header:hover {
+  background: #084470;
+}
+
+.chevron {
+  font-size: 0.7rem;
+  margin-right: 0.5rem;
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+
+.chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.section-header.collapsed {
+  border-radius: 4px;
 }
 
 .section-header h2 {
