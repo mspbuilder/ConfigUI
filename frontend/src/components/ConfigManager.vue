@@ -88,8 +88,9 @@
           <div v-for="config in group.items" :key="getConfigId(config)" class="config-item">
             <div class="label-cell">
               <span class="property-name">{{ getProperty(config) }}</span>
-              <span v-if="getTooltip(config)" class="tooltip" :title="getTooltip(config)">?</span>
             </div>
+            <span v-if="getTooltip(config)" class="tooltip" :title="getTooltip(config)">?</span>
+            <span v-else class="tooltip-spacer"></span>
             <!-- Dropdown for Y/N and other dropdown datatypes -->
             <select
               v-if="isDropdownField(config)"
@@ -553,7 +554,7 @@ select {
 
 .config-item {
   display: grid;
-  grid-template-columns: 180px 1fr auto;
+  grid-template-columns: 180px auto 1fr auto;
   gap: 0.5rem;
   padding: 0.35rem 0.5rem;
   border-bottom: 1px solid #f0f0f0;
@@ -577,6 +578,13 @@ select {
   color: #333;
 }
 
+.config-item .tooltip,
+.config-item .tooltip-spacer {
+  width: 1rem;
+  text-align: center;
+  padding-top: 0.3rem;
+}
+
 .config-item .tooltip {
   color: #888;
   cursor: help;
@@ -597,9 +605,8 @@ select {
 }
 
 .config-item .config-dropdown {
-  width: auto;
-  min-width: 80px;
-  max-width: 100%;
+  width: 70px;
+  flex-shrink: 0;
   background-color: white;
   cursor: pointer;
 }
@@ -659,12 +666,17 @@ select {
 
 @media (max-width: 600px) {
   .config-item {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: auto 1fr auto;
   }
 
   .config-item .label-cell {
     grid-column: 1 / -1;
     margin-bottom: 0.25rem;
+  }
+
+  .config-item .tooltip,
+  .config-item .tooltip-spacer {
+    display: none;
   }
 
   .filters {
