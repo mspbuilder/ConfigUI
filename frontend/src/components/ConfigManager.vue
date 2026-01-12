@@ -162,6 +162,8 @@ function toggleSection(sectionName) {
     expandedSections.value.delete(sectionName);
   } else {
     expandedSections.value.add(sectionName);
+    // Resize textareas after section expands and DOM updates
+    resizeAllTextareas();
   }
   // Trigger reactivity
   expandedSections.value = new Set(expandedSections.value);
