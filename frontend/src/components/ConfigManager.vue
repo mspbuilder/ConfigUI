@@ -103,14 +103,16 @@
                 {{ opt }}
               </option>
             </select>
-            <!-- Password fields -->
-            <input
+            <!-- Password/Secure fields - click to edit -->
+            <div
               v-else-if="isPasswordField(config)"
-              type="password"
-              :value="getValue(config)"
-              @change="updateValue(config, $event.target.value, getCurrentLevel())"
-              :disabled="!canEdit"
-            />
+              class="secure-field"
+              @click="canEdit && openSecureFieldEditor(config)"
+              :class="{ disabled: !canEdit }"
+            >
+              <span class="masked-value">******</span>
+              <span class="edit-hint" v-if="canEdit">Click to edit</span>
+            </div>
             <!-- Default: textarea for text fields -->
             <textarea
               v-else
@@ -126,6 +128,18 @@
         </div>
       </div>
     </div>
+
+    <!-- Secure Field Editor Modal -->
+    <SecureFieldEditor
+      v-if="secureFieldEditor.visible && secureFieldEditor.config"
+      :config-id="getConfigId(secureFieldEditor.config)"
+      :property-name="getProperty(secureFieldEditor.config)"
+      :initial-value="getValue(secureFieldEditor.config)"
+      :initial-security-level="getSecurityLevel(secureFieldEditor.config)"
+      :placeholder="getPlaceholder(secureFieldEditor.config)"
+      @close="closeSecureFieldEditor"
+      @save="handleSecureFieldSave"
+    />
   </div>
 </template>
 
@@ -135,6 +149,7 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useConfigStore } from '../stores/config';
 import AddSectionControl from './AddSectionControl.vue';
+import SecureFieldEditor from './SecureFieldEditor.vue';
 import api from '../services/api';
 
 const router = useRouter();
@@ -149,6 +164,12 @@ const selectedAgent = ref('');
 
 // Track expanded sections - empty Set means all collapsed by default
 const expandedSections = ref(new Set());
+
+// Secure field editor state
+const secureFieldEditor = reactive({
+  visible: false,
+  config: null,
+});
 
 // Cache for datatype dropdown values (keyed by datatypeid)
 const dataTypeValuesCache = ref({});
@@ -220,6 +241,42 @@ function getPlaceholder(config) {
 function isPasswordField(config) {
   return (config.MVPwdFlag === 'True' || config.MVPwdFlag === true ||
           config.MVPwdFlag2 === '1' || config.MVPwdFlag2 === 1);
+}
+
+function getSecurityLevel(config) {
+  if (config.MVPwdFlag === 'True' || config.MVPwdFlag === true) {
+    return 'password';
+  }
+  if (config.MVPwdFlag2 === '1' || config.MVPwdFlag2 === 1) {
+    return 'secure';
+  }
+  return 'plain';
+}
+
+function openSecureFieldEditor(config) {
+  secureFieldEditor.config = config;
+  secureFieldEditor.visible = true;
+}
+
+function closeSecureFieldEditor() {
+  secureFieldEditor.visible = false;
+  secureFieldEditor.config = null;
+}
+
+async function handleSecureFieldSave({ configId, value, securityLevel }) {
+  try {
+    // TODO: Add encryption based on securityLevel when DiCipher is implemented
+    // For now, pass the security level to the backend
+    const result = await configStore.updateConfig(configId, value, getCurrentLevel(), securityLevel);
+    if (result?.blocked) {
+      showToast('Edit blocked - database is in read-only mode', 'warning');
+    } else {
+      showToast('Secure field updated', 'info');
+    }
+    closeSecureFieldEditor();
+  } catch (error) {
+    showToast('Failed to update secure field', 'error');
+  }
 }
 
 function isNonDefaultTask(config) {
@@ -603,6 +660,41 @@ select {
   color: #888;
   cursor: help;
   font-size: 0.75rem;
+}
+
+.config-item .secure-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  background: #f8f8f8;
+  cursor: pointer;
+  min-height: 1.75rem;
+  box-sizing: border-box;
+}
+
+.config-item .secure-field:hover:not(.disabled) {
+  border-color: #0a5591;
+  background: #f0f7ff;
+}
+
+.config-item .secure-field.disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.config-item .secure-field .masked-value {
+  color: #666;
+  font-family: monospace;
+  letter-spacing: 0.1em;
+}
+
+.config-item .secure-field .edit-hint {
+  font-size: 0.75rem;
+  color: #0a5591;
+  margin-left: auto;
 }
 
 .config-item input,
