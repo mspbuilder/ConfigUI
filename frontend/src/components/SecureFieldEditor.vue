@@ -42,7 +42,7 @@
                 value="password"
                 name="security-level"
               />
-              <span>Password (Secure1)</span>
+              <span>Password (user accounts only)</span>
             </label>
             <label class="radio-option">
               <input
@@ -51,7 +51,7 @@
                 value="secure"
                 name="security-level"
               />
-              <span>Secure (Secure2)</span>
+              <span>Secure (decryptable)</span>
             </label>
           </div>
         </div>

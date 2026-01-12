@@ -103,14 +103,15 @@
                 {{ opt }}
               </option>
             </select>
-            <!-- Password/Secure fields - click to edit -->
+            <!-- Secure fields (password fields OR Cloud Script Variables) - click to edit -->
             <div
-              v-else-if="isPasswordField(config)"
+              v-else-if="isSecureField(config)"
               class="secure-field"
               @click="canEdit && openSecureFieldEditor(config)"
-              :class="{ disabled: !canEdit }"
+              :class="{ disabled: !canEdit, 'has-value': getValue(config) }"
             >
-              <span class="masked-value">******</span>
+              <span v-if="isPasswordField(config)" class="masked-value">******</span>
+              <span v-else class="preview-value">{{ getValue(config) || '(empty)' }}</span>
               <span class="edit-hint" v-if="canEdit">Click to edit</span>
             </div>
             <!-- Default: textarea for text fields -->
@@ -241,6 +242,17 @@ function getPlaceholder(config) {
 function isPasswordField(config) {
   return (config.MVPwdFlag === 'True' || config.MVPwdFlag === true ||
           config.MVPwdFlag2 === '1' || config.MVPwdFlag2 === 1);
+}
+
+// Check if this is a Cloud Script Variable (VARMAP section) - these use the secure field editor
+function isCloudScriptVariable(config) {
+  const section = (config.section || config.Section || '').toUpperCase();
+  return section === 'VARMAP';
+}
+
+// Check if config should use secure field editor (either password field OR cloud script variable)
+function isSecureField(config) {
+  return isPasswordField(config) || isCloudScriptVariable(config);
 }
 
 function getSecurityLevel(config) {
@@ -691,10 +703,25 @@ select {
   letter-spacing: 0.1em;
 }
 
+.config-item .secure-field .preview-value {
+  color: #333;
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+}
+
+.config-item .secure-field:not(.has-value) .preview-value {
+  color: #999;
+  font-style: italic;
+}
+
 .config-item .secure-field .edit-hint {
   font-size: 0.75rem;
   color: #0a5591;
   margin-left: auto;
+  flex-shrink: 0;
 }
 
 .config-item input,
