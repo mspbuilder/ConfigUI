@@ -130,7 +130,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useConfigStore } from '../stores/config';
@@ -271,6 +271,16 @@ function autoResize(event) {
   textarea.style.height = textarea.scrollHeight + 'px';
 }
 
+function resizeAllTextareas() {
+  nextTick(() => {
+    const textareas = document.querySelectorAll('.config-item textarea');
+    textareas.forEach(textarea => {
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+    });
+  });
+}
+
 function getCurrentLevel() {
   if (selectedAgent.value) return 'AGENT';
   if (selectedSite.value) return 'SITE';
@@ -356,6 +366,7 @@ async function handleAgentChange() {
 async function loadData() {
   await configStore.loadConfigs();
   await loadAllDataTypeValues();
+  resizeAllTextareas();
 }
 
 async function updateValue(config, value, level) {
