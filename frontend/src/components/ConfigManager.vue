@@ -606,7 +606,9 @@ select {
 }
 
 .config-item .config-dropdown {
-  width: 70px;
+  width: auto;
+  min-width: 70px;
+  max-width: 200px;
   flex-shrink: 0;
   background-color: white;
   cursor: pointer;
