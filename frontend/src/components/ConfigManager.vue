@@ -153,8 +153,9 @@ const expandedSections = ref(new Set());
 // Cache for datatype dropdown values (keyed by datatypeid)
 const dataTypeValuesCache = ref({});
 
-// Datatypes that use dropdown controls (Y/N type is datatypeid 3)
-const DROPDOWN_DATATYPES = [7];
+// Datatypes that use dropdown controls
+// 7 = Y/N, 18 = N/Y/All
+const DROPDOWN_DATATYPES = [7, 18];
 
 function toggleSection(sectionName) {
   if (expandedSections.value.has(sectionName)) {
