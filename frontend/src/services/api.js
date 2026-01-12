@@ -98,4 +98,9 @@ export default {
   getUserRoles() {
     return api.get('/auth/roles');
   },
+
+  // Get datatype values for dropdown controls
+  getDataTypeValues(dataTypeId) {
+    return api.get(`/datatypes/${dataTypeId}/values`);
+  },
 };

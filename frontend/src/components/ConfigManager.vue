@@ -90,8 +90,29 @@
               <span class="property-name">{{ getProperty(config) }}</span>
               <span v-if="getTooltip(config)" class="tooltip" :title="getTooltip(config)">?</span>
             </div>
+            <!-- Dropdown for Y/N and other dropdown datatypes -->
+            <select
+              v-if="isDropdownField(config)"
+              :value="getValue(config)"
+              @change="updateValue(config, $event.target.value, getCurrentLevel())"
+              :disabled="!canEdit"
+              class="config-dropdown"
+            >
+              <option v-for="opt in getDropdownOptions(config)" :key="opt" :value="opt">
+                {{ opt }}
+              </option>
+            </select>
+            <!-- Password fields -->
+            <input
+              v-else-if="isPasswordField(config)"
+              type="password"
+              :value="getValue(config)"
+              @change="updateValue(config, $event.target.value, getCurrentLevel())"
+              :disabled="!canEdit"
+            />
+            <!-- Default: textarea for text fields -->
             <textarea
-              v-if="!isPasswordField(config)"
+              v-else
               :value="getValue(config)"
               :placeholder="getPlaceholder(config)"
               @change="updateValue(config, $event.target.value, getCurrentLevel())"
@@ -99,13 +120,6 @@
               :disabled="!canEdit"
               rows="1"
             ></textarea>
-            <input
-              v-else
-              type="password"
-              :value="getValue(config)"
-              @change="updateValue(config, $event.target.value, getCurrentLevel())"
-              :disabled="!canEdit"
-            />
             <button v-if="isNonDefaultTask(config)" @click="deleteConfig(getConfigId(config))" class="delete-btn" title="Remove Task">X</button>
           </div>
         </div>
@@ -120,6 +134,7 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useConfigStore } from '../stores/config';
 import AddSectionControl from './AddSectionControl.vue';
+import api from '../services/api';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -133,6 +148,12 @@ const selectedAgent = ref('');
 
 // Track expanded sections - empty Set means all collapsed by default
 const expandedSections = ref(new Set());
+
+// Cache for datatype dropdown values (keyed by datatypeid)
+const dataTypeValuesCache = ref({});
+
+// Datatypes that use dropdown controls (Y/N type is datatypeid 3)
+const DROPDOWN_DATATYPES = [7];
 
 function toggleSection(sectionName) {
   if (expandedSections.value.has(sectionName)) {
@@ -199,6 +220,47 @@ function isPasswordField(config) {
 
 function isNonDefaultTask(config) {
   return config.NonDefaultTask === 'True' || config.NonDefaultTask === true;
+}
+
+function getDataTypeId(config) {
+  return config.datatypeid || config.DataTypeID || config.dataTypeId || null;
+}
+
+function isDropdownField(config) {
+  const dtId = getDataTypeId(config);
+  return dtId && DROPDOWN_DATATYPES.includes(parseInt(dtId));
+}
+
+function getDropdownOptions(config) {
+  const dtId = getDataTypeId(config);
+  if (!dtId) return [];
+  return dataTypeValuesCache.value[dtId] || [];
+}
+
+async function loadDataTypeValues(dataTypeId) {
+  if (dataTypeValuesCache.value[dataTypeId]) return;
+  try {
+    const response = await api.getDataTypeValues(dataTypeId);
+    if (response.data.success && response.data.values) {
+      // Store the DATA column values from the SP result
+      dataTypeValuesCache.value[dataTypeId] = response.data.values.map(v => v.DATA || v.data || v);
+    }
+  } catch (error) {
+    console.error('Failed to load datatype values:', error);
+  }
+}
+
+async function loadAllDataTypeValues() {
+  // Load dropdown values for all dropdown datatypes used in current configs
+  const uniqueDataTypes = new Set();
+  configStore.configs.forEach(config => {
+    const dtId = getDataTypeId(config);
+    if (dtId && DROPDOWN_DATATYPES.includes(parseInt(dtId))) {
+      uniqueDataTypes.add(parseInt(dtId));
+    }
+  });
+
+  await Promise.all([...uniqueDataTypes].map(dtId => loadDataTypeValues(dtId)));
 }
 
 function autoResize(event) {
@@ -291,6 +353,7 @@ async function handleAgentChange() {
 
 async function loadData() {
   await configStore.loadConfigs();
+  await loadAllDataTypeValues();
 }
 
 async function updateValue(config, value, level) {
@@ -521,7 +584,8 @@ select {
 }
 
 .config-item input,
-.config-item textarea {
+.config-item textarea,
+.config-item .config-dropdown {
   padding: 0.3rem 0.5rem;
   border: 1px solid #ddd;
   border-radius: 3px;
@@ -532,6 +596,14 @@ select {
   font-family: inherit;
 }
 
+.config-item .config-dropdown {
+  width: auto;
+  min-width: 80px;
+  max-width: 100%;
+  background-color: white;
+  cursor: pointer;
+}
+
 .config-item textarea {
   resize: none;
   overflow: hidden;
@@ -540,7 +612,8 @@ select {
 }
 
 .config-item input:focus,
-.config-item textarea:focus {
+.config-item textarea:focus,
+.config-item .config-dropdown:focus {
   outline: none;
   border-color: #0a5591;
 }
