@@ -8,6 +8,24 @@ const api = axios.create({
   },
 });
 
+// SQL Echo logging for read-only mode
+// Logs SQL statements to browser console when DB_READ_ONLY=true and admin is logged in
+function logSqlEcho(response) {
+  const data = response.data;
+  if (data?.sqlEcho) {
+    const { sql, params, formattedSql } = data.sqlEcho;
+    console.group('%c[SQL ECHO - Read-Only Mode]', 'color: #ff9800; font-weight: bold;');
+    console.log('%cFormatted SQL:', 'color: #4caf50; font-weight: bold;');
+    console.log(formattedSql);
+    console.log('%cRaw SQL:', 'color: #2196f3;', sql);
+    console.log('%cParameters:', 'color: #9c27b0;', params);
+    if (data.blocked) {
+      console.log('%cStatus: BLOCKED (write operation prevented)', 'color: #f44336; font-weight: bold;');
+    }
+    console.groupEnd();
+  }
+}
+
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
@@ -21,6 +39,8 @@ api.interceptors.request.use(
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
+    // Log SQL echo if present (for read-only mode with admin user)
+    logSqlEcho(response);
     return response;
   },
   (error) => {

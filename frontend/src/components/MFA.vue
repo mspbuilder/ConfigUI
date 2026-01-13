@@ -28,6 +28,7 @@
             v-model="mfaCode[index]"
             @input="handleInput(index, $event)"
             @keydown.delete="handleBackspace(index)"
+            @keydown.enter="handleEnter"
             @click="selectInput(index)"
             @paste="handlePaste($event)"
             type="text"
@@ -126,6 +127,13 @@ function handlePaste(event) {
 
 function copySecret() {
   navigator.clipboard.writeText(secret.value);
+}
+
+function handleEnter() {
+  // Submit if all 6 digits are entered
+  if (mfaCode.value.join('').length === 6 && !loading.value) {
+    verifyCode();
+  }
 }
 
 async function verifyCode() {

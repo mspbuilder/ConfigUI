@@ -76,6 +76,34 @@ async function requireMFA(req, res, next) {
   }
 }
 
+// Fetch user roles and attach to request (for SQL echo in read-only mode)
+// This does not enforce any role requirements, just populates req.userRoles
+async function fetchUserRoles(req, res, next) {
+  const reqLog = req.log || log;
+  try {
+    // Skip if roles already fetched
+    if (req.userRoles) {
+      return next();
+    }
+
+    const result = await queryMojo(
+      `SELECT r.RoleName, r.DisplayName
+       FROM mp_UserRoles ur
+       JOIN mp_Roles r ON ur.RoleID = r.RoleID
+       WHERE ur.UserID = @userId`,
+      { userId: req.user.userId }
+    );
+
+    req.userRoles = result.recordset.map(r => r.RoleName);
+    next();
+  } catch (error) {
+    reqLog.error('Fetch roles error', { err: error.message, userId: req.user.userId });
+    // Don't fail the request, just set empty roles
+    req.userRoles = [];
+    next();
+  }
+}
+
 async function requireRole(roles = []) {
   return async (req, res, next) => {
     const reqLog = req.log || log;
@@ -111,5 +139,6 @@ async function requireRole(roles = []) {
 module.exports = {
   authenticate,
   requireMFA,
+  fetchUserRoles,
   requireRole
 };

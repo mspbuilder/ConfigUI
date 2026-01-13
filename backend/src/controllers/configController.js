@@ -1,18 +1,49 @@
-const { queryConfig, sql } = require('../config/database');
+const { queryConfig, sql, READ_ONLY_MODE, formatSqlForLog } = require('../config/database');
 const { createLogger } = require('../utils/logger');
 
 const log = createLogger(__filename);
 
-// Read-only mode - blocks all write operations and logs SQL instead
-const READ_ONLY_MODE = process.env.DB_READ_ONLY === 'true';
 log.info('Config controller initialized', { readOnlyMode: READ_ONLY_MODE, envValue: process.env.DB_READ_ONLY });
 
-function logBlockedWrite(reqLog, operation, sql, params) {
+// Admin roles that should see SQL echo
+const ADMIN_ROLES = ['Customer Config Admin', 'MSPB_Employees'];
+
+// Check if user has admin role
+function isAdmin(req) {
+  const userRoles = req.userRoles || [];
+  return userRoles.some(role => ADMIN_ROLES.includes(role));
+}
+
+// Get query options for SQL logging
+function getQueryOptions(req) {
+  const admin = isAdmin(req);
+  return {
+    reqLog: req.log || log,
+    isAdmin: admin
+  };
+}
+
+// Build response with optional SQL echo
+function buildResponse(baseResponse, result, req) {
+  // Only include sqlEcho if in read-only mode, user is admin, and sqlEcho exists
+  if (READ_ONLY_MODE && isAdmin(req) && result?.sqlEcho) {
+    return {
+      ...baseResponse,
+      sqlEcho: result.sqlEcho
+    };
+  }
+  return baseResponse;
+}
+
+function logBlockedWrite(reqLog, operation, sqlQuery, params) {
+  const formatted = formatSqlForLog(sqlQuery, params);
   reqLog.warn('BLOCKED WRITE (read-only mode)', {
     operation,
-    sql,
-    params
+    sql: sqlQuery,
+    params,
+    formattedSql: formatted
   });
+  return { sql: sqlQuery, params, formattedSql: formatted };
 }
 
 // Get configs using the actual stored procedure from ASCX
@@ -41,13 +72,14 @@ async function getCustomerConfigs(req, res) {
         p3: { type: sql.VarChar(100), value: orgString },
         p4: { type: sql.VarChar(255), value: siteString },
         p5: { type: sql.VarChar(255), value: agentString }
-      }
+      },
+      getQueryOptions(req)
     );
 
-    res.json({
+    res.json(buildResponse({
       success: true,
       configs: result.recordset
-    });
+    }, result, req));
   } catch (error) {
     reqLog.error('Get configs error', { err: error.message, customerId: req.query.customerId });
     res.status(500).json({ error: 'Failed to retrieve configurations' });
@@ -68,13 +100,14 @@ async function getDefaultConfigs(req, res) {
     // Use positional parameter like ASCX does
     const result = await queryConfig(
       `EXEC GET_DEFAULT_CONFIG_DATA_BY_CATEGORY @p1`,
-      { p1: category }
+      { p1: category },
+      getQueryOptions(req)
     );
 
-    res.json({
+    res.json(buildResponse({
       success: true,
       configs: result.recordset
-    });
+    }, result, req));
   } catch (error) {
     reqLog.error('Get default configs error', { err: error.message, category: req.query.category });
     res.status(500).json({ error: 'Failed to retrieve default configurations' });
@@ -90,17 +123,18 @@ async function getConfigById(req, res) {
 
     const result = await queryConfig(
       `EXEC GET_CONFIG_DATA_BY_Configuration_Overrides_ID @p1`,
-      { p1: configId }
+      { p1: configId },
+      getQueryOptions(req)
     );
 
     if (result.recordset.length === 0) {
       return res.status(404).json({ error: 'Configuration not found' });
     }
 
-    res.json({
+    res.json(buildResponse({
       success: true,
       config: result.recordset[0]
-    });
+    }, result, req));
   } catch (error) {
     reqLog.error('Get config by ID error', { err: error.message, configId: req.params.configId });
     res.status(500).json({ error: 'Failed to retrieve configuration' });
@@ -128,7 +162,7 @@ async function updateConfig(req, res) {
       return res.status(400).json({ error: 'Invalid level. Must be one of: GLOBAL, CUSTOMER, ORG, SITE, AGENT' });
     }
 
-    const sql = `EXEC UPDATE_CONFIGURATION_OVERRIDES @p1, @p2, @p3, @p4, @p5`;
+    const sqlQuery = `EXEC UPDATE_CONFIGURATION_OVERRIDES @p1, @p2, @p3, @p4, @p5`;
     const params = {
       p1: configId,
       p2: value || '',
@@ -138,11 +172,16 @@ async function updateConfig(req, res) {
     };
 
     if (READ_ONLY_MODE) {
-      logBlockedWrite(reqLog, 'UPDATE_CONFIG', sql, params);
-      return res.json({ success: true, blocked: true, message: 'Write blocked (read-only mode)' });
+      const sqlEcho = logBlockedWrite(reqLog, 'UPDATE_CONFIG', sqlQuery, params);
+      const response = { success: true, blocked: true, message: 'Write blocked (read-only mode)' };
+      // Include SQL echo for admin users
+      if (isAdmin(req)) {
+        response.sqlEcho = sqlEcho;
+      }
+      return res.json(response);
     }
 
-    await queryConfig(sql, params);
+    await queryConfig(sqlQuery, params, getQueryOptions(req));
 
     reqLog.info('Config updated', { configId, level: upperLevel, username: req.user.username });
     res.json({ success: true });
@@ -164,18 +203,22 @@ async function deleteConfig(req, res) {
       return res.status(400).json({ error: 'configId is required' });
     }
 
-    const sql = `EXEC DELETE_OVERRIDE_BY_CONFIGURATION_OVERRIDE_ID @p1, @p2`;
+    const sqlQuery = `EXEC DELETE_OVERRIDE_BY_CONFIGURATION_OVERRIDE_ID @p1, @p2`;
     const params = {
       p1: configId,
       p2: req.user.username
     };
 
     if (READ_ONLY_MODE) {
-      logBlockedWrite(reqLog, 'DELETE_CONFIG', sql, params);
-      return res.json({ success: true, blocked: true, message: 'Write blocked (read-only mode)' });
+      const sqlEcho = logBlockedWrite(reqLog, 'DELETE_CONFIG', sqlQuery, params);
+      const response = { success: true, blocked: true, message: 'Write blocked (read-only mode)' };
+      if (isAdmin(req)) {
+        response.sqlEcho = sqlEcho;
+      }
+      return res.json(response);
     }
 
-    await queryConfig(sql, params);
+    await queryConfig(sqlQuery, params, getQueryOptions(req));
 
     reqLog.info('Config deleted', { configId, username: req.user.username });
     res.json({ success: true });
@@ -194,13 +237,14 @@ async function getCategories(req, res) {
       `SELECT file_spec_id, f_name, file_desc, legacy_category_name, sort_order, custom_sections_allowed
        FROM Config.File_Spec
        ORDER BY sort_order`,
-      {}
+      {},
+      getQueryOptions(req)
     );
 
-    res.json({
+    res.json(buildResponse({
       success: true,
       categories: result.recordset
-    });
+    }, result, req));
   } catch (error) {
     reqLog.error('Get categories error', { err: error.message });
     res.status(500).json({ error: 'Failed to retrieve categories' });
@@ -222,13 +266,14 @@ async function getOrganizations(req, res) {
 
     const result = await queryConfig(
       `SELECT orgid, orgcode, orgname FROM Config.Cfg_UI_Cust_Orgs WHERE cid = @cid ORDER BY orgname`,
-      { cid: custIdShort }
+      { cid: custIdShort },
+      getQueryOptions(req)
     );
 
-    res.json({
+    res.json(buildResponse({
       success: true,
       organizations: result.recordset
-    });
+    }, result, req));
   } catch (error) {
     reqLog.error('Get organizations error', { err: error.message, customerId: req.query.customerId });
     res.status(500).json({ error: 'Failed to retrieve organizations' });
@@ -252,13 +297,14 @@ async function getSites(req, res) {
     // Use positional parameters like ASCX does
     const result = await queryConfig(
       `EXEC GET_SITES_BY_CUSTID_ORG @p1, @p2`,
-      { p1: customerId, p2: orgString }
+      { p1: customerId, p2: orgString },
+      getQueryOptions(req)
     );
 
-    res.json({
+    res.json(buildResponse({
       success: true,
       sites: result.recordset
-    });
+    }, result, req));
   } catch (error) {
     reqLog.error('Get sites error', { err: error.message, customerId: req.query.customerId, organization: req.query.organization });
     res.status(500).json({ error: 'Failed to retrieve sites' });
@@ -283,13 +329,14 @@ async function getAgents(req, res) {
     // Use positional parameters like ASCX does
     const result = await queryConfig(
       `EXEC GET_AGENTS_BY_CUSTID_ORG_SITE @p1, @p2, @p3`,
-      { p1: customerId, p2: orgString, p3: siteString }
+      { p1: customerId, p2: orgString, p3: siteString },
+      getQueryOptions(req)
     );
 
-    res.json({
+    res.json(buildResponse({
       success: true,
       agents: result.recordset
-    });
+    }, result, req));
   } catch (error) {
     reqLog.error('Get agents error', { err: error.message, customerId: req.query.customerId, organization: req.query.organization, site: req.query.site });
     res.status(500).json({ error: 'Failed to retrieve agents' });
@@ -301,12 +348,12 @@ async function getAgents(req, res) {
 async function getCustomers(req, res) {
   const reqLog = req.log || log;
   try {
-    const result = await queryConfig(`EXEC Get_Customers_For_Dropdown`, {});
+    const result = await queryConfig(`EXEC Get_Customers_For_Dropdown`, {}, getQueryOptions(req));
 
-    res.json({
+    res.json(buildResponse({
       success: true,
       customers: result.recordset
-    });
+    }, result, req));
   } catch (error) {
     reqLog.error('Get customers error', { err: error.message });
     res.status(500).json({ error: 'Failed to retrieve customers' });
@@ -334,7 +381,7 @@ async function createMaintenanceTask(req, res) {
       return res.status(400).json({ error: 'section (task name) is required' });
     }
 
-    const sql = `EXEC ADD_RMM_MAINTENANCE_TASK @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9`;
+    const sqlQuery = `EXEC ADD_RMM_MAINTENANCE_TASK @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9`;
     const params = {
       p1: customerId || '',
       p2: organizationId || '',
@@ -348,11 +395,15 @@ async function createMaintenanceTask(req, res) {
     };
 
     if (READ_ONLY_MODE) {
-      logBlockedWrite(reqLog, 'CREATE_MAINTENANCE_TASK', sql, params);
-      return res.json({ success: true, blocked: true, message: 'Write blocked (read-only mode)' });
+      const sqlEcho = logBlockedWrite(reqLog, 'CREATE_MAINTENANCE_TASK', sqlQuery, params);
+      const response = { success: true, blocked: true, message: 'Write blocked (read-only mode)' };
+      if (isAdmin(req)) {
+        response.sqlEcho = sqlEcho;
+      }
+      return res.json(response);
     }
 
-    await queryConfig(sql, params);
+    await queryConfig(sqlQuery, params, getQueryOptions(req));
 
     reqLog.info('Maintenance task created', { section, customerId, username: req.user.username });
     res.json({ success: true });
@@ -375,7 +426,7 @@ async function createSection(req, res) {
 
     // TODO: Replace with actual stored procedure once created
     // For now, this is a stub that logs the intent
-    const sql = `-- STUB: INSERT custom section
+    const sqlQuery = `-- STUB: INSERT custom section
       -- Category: @p1, Section: @p2, CustomerId: @p3, Org: @p4, Site: @p5, Agent: @p6, User: @p7`;
     const params = {
       p1: category,
@@ -388,8 +439,12 @@ async function createSection(req, res) {
     };
 
     if (READ_ONLY_MODE) {
-      logBlockedWrite(reqLog, 'CREATE_SECTION', sql, params);
-      return res.json({ success: true, blocked: true, message: 'Write blocked (read-only mode)' });
+      const sqlEcho = logBlockedWrite(reqLog, 'CREATE_SECTION', sqlQuery, params);
+      const response = { success: true, blocked: true, message: 'Write blocked (read-only mode)' };
+      if (isAdmin(req)) {
+        response.sqlEcho = sqlEcho;
+      }
+      return res.json(response);
     }
 
     // TODO: Execute actual SQL/SP when ready
@@ -412,13 +467,14 @@ async function getDataTypeValues(req, res) {
     // Use positional parameter
     const result = await queryConfig(
       `EXEC GET_CONFIG_VALUES_BY_DATATYPE_ID @p1`,
-      { p1: dataTypeId }
+      { p1: dataTypeId },
+      getQueryOptions(req)
     );
 
-    res.json({
+    res.json(buildResponse({
       success: true,
       values: result.recordset
-    });
+    }, result, req));
   } catch (error) {
     reqLog.error('Get datatype values error', { err: error.message, dataTypeId: req.params.dataTypeId });
     res.status(500).json({ error: 'Failed to retrieve datatype values' });

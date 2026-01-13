@@ -4,6 +4,47 @@ const { createLogger } = require('../utils/logger');
 
 const log = createLogger(__filename);
 
+// Read-only mode flag - when true, SQL statements are logged/echoed
+const READ_ONLY_MODE = process.env.DB_READ_ONLY === 'true';
+
+// Helper to format SQL with parameters for logging
+function formatSqlForLog(queryString, params) {
+  let formatted = queryString;
+  Object.keys(params).forEach(key => {
+    const param = params[key];
+    const value = param && typeof param === 'object' && param.value !== undefined
+      ? param.value
+      : param;
+    // Escape single quotes and wrap strings in quotes for display
+    const displayValue = typeof value === 'string'
+      ? `'${value.replace(/'/g, "''")}'`
+      : value;
+    formatted = formatted.replace(new RegExp(`@${key}\\b`, 'g'), String(displayValue));
+  });
+  return formatted;
+}
+
+// Log SQL statement when in read-only mode
+function logSqlStatement(operation, queryString, params, reqLog = null) {
+  if (!READ_ONLY_MODE) return;
+
+  const formatted = formatSqlForLog(queryString, params);
+  const logData = {
+    operation,
+    sql: queryString,
+    params,
+    formattedSql: formatted
+  };
+
+  if (reqLog) {
+    reqLog.info('SQL_ECHO (read-only mode)', logData);
+  } else {
+    log.info('SQL_ECHO (read-only mode)', logData);
+  }
+
+  return { sql: queryString, params, formattedSql: formatted };
+}
+
 // MojoPortal database connection (for user/role queries)
 const mojoConfig = {
   server: process.env.MOJO_DB_SERVER,
@@ -79,7 +120,16 @@ async function queryMojo(queryString, params = {}) {
 
 // Query Configurations database (configs, MFA)
 // Params can be either simple values (type inferred) or objects with { type, value }
-async function queryConfig(queryString, params = {}) {
+// Options: { reqLog, isAdmin } - for SQL logging in read-only mode
+async function queryConfig(queryString, params = {}, options = {}) {
+  const { reqLog, isAdmin } = options;
+
+  // Log SQL when in read-only mode and admin is logged in
+  let sqlEcho = null;
+  if (READ_ONLY_MODE && isAdmin) {
+    sqlEcho = logSqlStatement('QUERY_CONFIG', queryString, params, reqLog);
+  }
+
   try {
     const connection = await getConfigConnection();
     const request = connection.request();
@@ -96,6 +146,12 @@ async function queryConfig(queryString, params = {}) {
     });
 
     const result = await request.query(queryString);
+
+    // Attach SQL echo data to result for API response
+    if (sqlEcho) {
+      result.sqlEcho = sqlEcho;
+    }
+
     return result;
   } catch (error) {
     log.error('Configurations database query error', { err: error.message, code: error.code });
@@ -108,7 +164,17 @@ async function query(queryString, params = {}) {
   return queryConfig(queryString, params);
 }
 
-async function execute(procedureName, params = {}) {
+// Execute stored procedure
+// Options: { reqLog, isAdmin } - for SQL logging in read-only mode
+async function execute(procedureName, params = {}, options = {}) {
+  const { reqLog, isAdmin } = options;
+
+  // Log SQL when in read-only mode and admin is logged in
+  let sqlEcho = null;
+  if (READ_ONLY_MODE && isAdmin) {
+    sqlEcho = logSqlStatement('EXECUTE_SP', `EXEC ${procedureName}`, params, reqLog);
+  }
+
   try {
     const connection = await getConfigConnection();
     const request = connection.request();
@@ -118,6 +184,12 @@ async function execute(procedureName, params = {}) {
     });
 
     const result = await request.execute(procedureName);
+
+    // Attach SQL echo data to result for API response
+    if (sqlEcho) {
+      result.sqlEcho = sqlEcho;
+    }
+
     return result;
   } catch (error) {
     log.error('Stored procedure execution error', { procedure: procedureName, err: error.message, code: error.code });
@@ -132,5 +204,7 @@ module.exports = {
   queryConfig,
   query,
   execute,
-  sql
+  sql,
+  READ_ONLY_MODE,
+  formatSqlForLog
 };
