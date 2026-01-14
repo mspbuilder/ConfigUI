@@ -277,17 +277,22 @@ function getParentValue(config) {
 }
 
 function getParentLevel(config) {
-  const level = config.ParentLevel || config.parentlevel;
-  if (level === null || level === undefined) return null;
-  // Level mapping: 1=Customer, 2=Org, 3=Site, 4=Agent (0=Global is implicit parent of Customer)
+  const level = config.ParentLevel ?? config.parentlevel;
+
+  if (level === null || level === undefined) {
+    return 'Unknown';
+  }
+
+  // _cfg_level mapping: -1=Global, 0=Customer, 1=Org, 2=Site, 3=Agent
   const levelMap = {
-    0: 'Global',
-    1: 'Customer',
-    2: 'Org',
-    3: 'Site',
-    4: 'Agent'
+    '-1': 'Global',
+    '0': 'Customer',
+    '1': 'Organization',
+    '2': 'Site',
+    '3': 'Agent'
   };
-  return levelMap[level] || level;
+
+  return levelMap[level] || `Level ${level}`;
 }
 
 function hasParentValue(config) {
