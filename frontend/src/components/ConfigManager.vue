@@ -33,10 +33,19 @@
           </option>
         </select>
 
-        <select v-model="selectedOrganization" @change="handleOrganizationChange">
+        <select
+          v-model="selectedOrganization"
+          @change="handleOrganizationChange"
+          :disabled="!selectedCategory"
+        >
           <option value="">Choose Organization</option>
-          <option v-for="org in configStore.organizations" :key="org.orgid" :value="org.orgname">
-            {{ org.orgname }}
+          <option
+            v-for="org in configStore.organizations"
+            :key="org.orgid"
+            :value="org.orgname"
+            :class="getOrgOptionClass(org)"
+          >
+            {{ formatOrgName(org) }}
           </option>
         </select>
 
@@ -390,7 +399,7 @@ onMounted(async () => {
     // Normal users: use their associated customerId
     configStore.setSelectedCustomerId(authStore.user.customerId);
     await configStore.loadCategories(authStore.user.customerId);
-    await configStore.loadOrganizations(authStore.user.customerId);
+    // Organizations will load after category is selected
   }
 });
 
@@ -404,12 +413,22 @@ async function handleCustomerChange() {
   if (selectedCustomer.value) {
     configStore.setSelectedCustomerId(selectedCustomer.value);
     await configStore.loadCategories(selectedCustomer.value);
-    await configStore.loadOrganizations(selectedCustomer.value);
+    // Organizations will load after category is selected
   }
 }
 
 async function handleCategoryChange() {
+  // Reset dependent selections when category changes
+  selectedOrganization.value = '';
+  selectedSite.value = '';
+  selectedAgent.value = '';
+
   configStore.setSelectedCategory(selectedCategory.value);
+
+  // Reload organizations with the new category (required for override flags)
+  if (selectedCategory.value && effectiveCustomerId.value) {
+    await configStore.loadOrganizations(effectiveCustomerId.value, selectedCategory.value);
+  }
 }
 
 async function handleOrganizationChange() {
@@ -473,6 +492,18 @@ async function handleLogout() {
   await authStore.logout();
   router.push('/login');
 }
+
+// Format organization name with asterisk if overridden below
+function formatOrgName(org) {
+  const overridenBelow = org.flag_overriden_below === true || org.flag_overriden_below === 1;
+  return overridenBelow ? `* ${org.orgname}` : org.orgname;
+}
+
+// Get CSS class for organization option based on override flags
+function getOrgOptionClass(org) {
+  const overridenHere = org.flag_overriden_here === true || org.flag_overriden_here === 1;
+  return overridenHere ? 'org-overridden-here' : '';
+}
 </script>
 
 <style scoped>
@@ -529,6 +560,10 @@ select {
   border-radius: 4px;
   flex: 1 1 180px;
   min-width: 150px;
+}
+
+select option.org-overridden-here {
+  font-weight: bold;
 }
 
 .customer-select {

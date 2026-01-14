@@ -99,8 +99,8 @@ export default {
   getCategories(customerId) {
     return api.get('/categories', { params: { customerId } });
   },
-  getOrganizations(customerId) {
-    return api.get('/organizations', { params: { customerId } });
+  getOrganizations(customerId, category) {
+    return api.get('/organizations', { params: { customerId, category } });
   },
   getSites(customerId, organization) {
     return api.get('/sites', { params: { customerId, organization } });

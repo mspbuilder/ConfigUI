@@ -251,22 +251,32 @@ async function getCategories(req, res) {
   }
 }
 
-// Get organizations from Config.Cfg_UI_Cust_Orgs view
+// Get organizations using Config.OrgsFlagged TVF (requires category to show override flags)
 async function getOrganizations(req, res) {
   const reqLog = req.log || log;
   try {
-    const { customerId } = req.query;
+    const { customerId, category } = req.query;
 
     if (!customerId) {
       return res.status(400).json({ error: 'customerId is required' });
     }
 
+    if (!category) {
+      return res.status(400).json({ error: 'category is required' });
+    }
+
     // ASCX uses first 6 chars of customerId
     const custIdShort = customerId.substring(0, 6);
 
+    // Call the TVF with CustomerID and Category parameters
     const result = await queryConfig(
-      `SELECT orgid, orgcode, orgname FROM Config.Cfg_UI_Cust_Orgs WHERE cid = @cid ORDER BY orgname`,
-      { cid: custIdShort },
+      `SELECT orgid, orgcode, orgname, flag_overriden_here, flag_overriden_below
+       FROM Config.OrgsFlagged(@p1, @p2)
+       ORDER BY orgname`,
+      {
+        p1: { type: sql.VarChar(100), value: custIdShort },
+        p2: { type: sql.VarChar(100), value: category }
+      },
       getQueryOptions(req)
     );
 
@@ -275,7 +285,7 @@ async function getOrganizations(req, res) {
       organizations: result.recordset
     }, result, req));
   } catch (error) {
-    reqLog.error('Get organizations error', { err: error.message, customerId: req.query.customerId });
+    reqLog.error('Get organizations error', { err: error.message, customerId: req.query.customerId, category: req.query.category });
     res.status(500).json({ error: 'Failed to retrieve organizations' });
   }
 }

@@ -92,9 +92,14 @@ export const useConfigStore = defineStore('config', {
       }
     },
 
-    async loadOrganizations(customerId) {
+    async loadOrganizations(customerId, category) {
       try {
-        const response = await api.getOrganizations(customerId);
+        // Organizations require category to be selected (for override flags)
+        if (!category) {
+          this.organizations = [];
+          return;
+        }
+        const response = await api.getOrganizations(customerId, category);
         this.organizations = response.data.organizations;
       } catch (error) {
         this.error = error.response?.data?.error || 'Failed to load organizations';
