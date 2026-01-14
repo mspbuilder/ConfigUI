@@ -161,13 +161,24 @@
 
             <!-- Descendants Tree View -->
             <div v-if="hasDescendants(config)" class="descendants-tree">
-              <button @click="toggleDescendants(config)" class="tree-toggle">
-                <span class="tree-icon">{{ isDescendantsExpanded(config) ? '▼' : '▶' }}</span>
-                <span class="tree-label">{{ getDescendantsCount(config) }} override{{ getDescendantsCount(config) > 1 ? 's' : '' }} below</span>
-              </button>
+              <div class="tree-header">
+                <button @click="toggleDescendants(config)" class="tree-toggle">
+                  <span class="tree-icon">{{ isDescendantsExpanded(config) ? '▼' : '▶' }}</span>
+                  <span class="tree-label">{{ getDescendantsCount(config) }} override{{ getDescendantsCount(config) > 1 ? 's' : '' }} below</span>
+                </button>
+
+                <label class="tree-filter-toggle">
+                  <input
+                    type="checkbox"
+                    v-model="descendantsShowDiffOnly[getConfigId(config)]"
+                    @change="updateDescendantsFilter"
+                  />
+                  <span class="filter-label">Show differences only</span>
+                </label>
+              </div>
 
               <div v-show="isDescendantsExpanded(config)" class="tree-content">
-                <div v-for="descendant in getDescendants(config)" :key="descendant.id" class="tree-node">
+                <div v-for="descendant in getFilteredDescendants(config)" :key="descendant.id" class="tree-node">
                   <div class="tree-node-content">
                     <span class="tree-level-icon">↓</span>
                     <span class="tree-level-type">{{ descendant.levelType }}</span>
@@ -221,6 +232,9 @@ const expandedSections = ref(new Set());
 
 // Track expanded descendants trees
 const expandedDescendants = ref(new Set());
+
+// Track "show differences only" filter per config item
+const descendantsShowDiffOnly = ref({});
 
 // Secure field editor state
 const secureFieldEditor = reactive({
@@ -357,6 +371,52 @@ function toggleDescendants(config) {
 
 function isDescendantsExpanded(config) {
   return expandedDescendants.value.has(getConfigId(config));
+}
+
+function updateDescendantsFilter() {
+  // Force reactivity update
+  descendantsShowDiffOnly.value = { ...descendantsShowDiffOnly.value };
+}
+
+function getFilteredDescendants(config) {
+  const descendants = getDescendants(config);
+  const configId = getConfigId(config);
+  const showDiffOnly = descendantsShowDiffOnly.value[configId];
+
+  if (!showDiffOnly) {
+    return descendants;
+  }
+
+  // Filter to show only descendants where value differs from parent
+  const currentValue = getValue(config);
+  const filtered = [];
+
+  for (let i = 0; i < descendants.length; i++) {
+    const descendant = descendants[i];
+
+    // Determine this descendant's parent value
+    // If this is the first descendant, parent is the current config
+    // Otherwise, parent is the previous descendant with lower level
+    let parentValue = currentValue;
+
+    if (i > 0) {
+      // Find the immediate parent (closest lower level)
+      for (let j = i - 1; j >= 0; j--) {
+        if (descendants[j].level < descendant.level) {
+          parentValue = descendants[j].Value || parentValue;
+          break;
+        }
+      }
+    }
+
+    // Show if descendant value differs from parent
+    const descendantValue = descendant.Value || '';
+    if (descendantValue !== parentValue) {
+      filtered.push(descendant);
+    }
+  }
+
+  return filtered;
 }
 
 function isPasswordField(config) {
@@ -893,6 +953,33 @@ select option.agent-overridden-here {
   background: #f9f9f9;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
+}
+
+.tree-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.tree-filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: #666;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tree-filter-toggle input[type="checkbox"] {
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+}
+
+.filter-label {
+  color: #555;
 }
 
 .tree-toggle {
