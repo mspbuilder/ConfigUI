@@ -102,11 +102,11 @@ export default {
   getOrganizations(customerId, category) {
     return api.get('/organizations', { params: { customerId, category } });
   },
-  getSites(customerId, organization) {
-    return api.get('/sites', { params: { customerId, organization } });
+  getSites(customerId, organization, category) {
+    return api.get('/sites', { params: { customerId, organization, category } });
   },
-  getAgents(customerId, organization, site) {
-    return api.get('/agents', { params: { customerId, organization, site } });
+  getAgents(customerId, organization, site, category) {
+    return api.get('/agents', { params: { customerId, organization, site, category } });
   },
 
   // Admin - get all customers for dropdown

@@ -49,17 +49,35 @@
           </option>
         </select>
 
-        <select v-model="selectedSite" @change="handleSiteChange">
+        <select
+          v-model="selectedSite"
+          @change="handleSiteChange"
+          :disabled="!selectedOrganization"
+        >
           <option value="">Choose Site</option>
-          <option v-for="site in configStore.sites" :key="site.Site" :value="site.Site">
-            {{ site.Site }}
+          <option
+            v-for="site in configStore.sites"
+            :key="site.site"
+            :value="site.site"
+            :class="getSiteOptionClass(site)"
+          >
+            {{ formatSiteName(site) }}
           </option>
         </select>
 
-        <select v-model="selectedAgent" @change="handleAgentChange">
+        <select
+          v-model="selectedAgent"
+          @change="handleAgentChange"
+          :disabled="!selectedSite"
+        >
           <option value="">Choose Agent</option>
-          <option v-for="agent in configStore.agents" :key="agent.id" :value="agent.Agent">
-            {{ agent.Agent }}
+          <option
+            v-for="agent in configStore.agents"
+            :key="agent.agent"
+            :value="agent.agent"
+            :class="getAgentOptionClass(agent)"
+          >
+            {{ agent.agent }}
           </option>
         </select>
 
@@ -432,19 +450,31 @@ async function handleCategoryChange() {
 }
 
 async function handleOrganizationChange() {
+  // Reset dependent selections when organization changes
+  selectedSite.value = '';
+  selectedAgent.value = '';
+
   configStore.setSelectedOrganization(selectedOrganization.value);
-  if (selectedOrganization.value && effectiveCustomerId.value) {
-    await configStore.loadSites(effectiveCustomerId.value, selectedOrganization.value);
+
+  // Reload sites with the new organization (required for override flags)
+  if (selectedOrganization.value && effectiveCustomerId.value && selectedCategory.value) {
+    await configStore.loadSites(effectiveCustomerId.value, selectedOrganization.value, selectedCategory.value);
   }
 }
 
 async function handleSiteChange() {
+  // Reset dependent selections when site changes
+  selectedAgent.value = '';
+
   configStore.setSelectedSite(selectedSite.value);
-  if (selectedSite.value && effectiveCustomerId.value) {
+
+  // Reload agents with the new site (required for override flags)
+  if (selectedSite.value && effectiveCustomerId.value && selectedCategory.value) {
     await configStore.loadAgents(
       effectiveCustomerId.value,
       selectedOrganization.value,
-      selectedSite.value
+      selectedSite.value,
+      selectedCategory.value
     );
   }
 }
@@ -504,6 +534,24 @@ function getOrgOptionClass(org) {
   const overridenHere = org.flag_overriden_here === true || org.flag_overriden_here === 1;
   return overridenHere ? 'org-overridden-here' : '';
 }
+
+// Format site name with asterisk if overridden below
+function formatSiteName(site) {
+  const overridenBelow = site.flag_overriden_below === true || site.flag_overriden_below === 1;
+  return overridenBelow ? `* ${site.site}` : site.site;
+}
+
+// Get CSS class for site option based on override flags
+function getSiteOptionClass(site) {
+  const overridenHere = site.flag_overriden_here === true || site.flag_overriden_here === 1;
+  return overridenHere ? 'site-overridden-here' : '';
+}
+
+// Get CSS class for agent option based on override flag (agents have no children)
+function getAgentOptionClass(agent) {
+  const overridenHere = agent.flag_overriden_here === true || agent.flag_overriden_here === 1;
+  return overridenHere ? 'agent-overridden-here' : '';
+}
 </script>
 
 <style scoped>
@@ -562,7 +610,9 @@ select {
   min-width: 150px;
 }
 
-select option.org-overridden-here {
+select option.org-overridden-here,
+select option.site-overridden-here,
+select option.agent-overridden-here {
   font-weight: bold;
 }
 

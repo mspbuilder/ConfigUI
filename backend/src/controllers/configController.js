@@ -290,24 +290,36 @@ async function getOrganizations(req, res) {
   }
 }
 
-// Get sites using stored procedure
-// Maps to: GET_SITES_BY_CUSTID_ORG
+// Get sites using Config.SitesFlagged TVF (requires category to show override flags)
 async function getSites(req, res) {
   const reqLog = req.log || log;
   try {
-    const { customerId, organization } = req.query;
+    const { customerId, organization, category } = req.query;
 
     if (!customerId || !organization) {
       return res.status(400).json({ error: 'customerId and organization are required' });
     }
 
+    if (!category) {
+      return res.status(400).json({ error: 'category is required' });
+    }
+
     // Ensure organization is a string (not an object from JSON)
     const orgString = typeof organization === 'string' ? organization : String(organization);
 
-    // Use positional parameters like ASCX does
+    // ASCX uses first 6 chars of customerId
+    const custIdShort = customerId.substring(0, 6);
+
+    // Call the TVF with CustomerID, Category, and Organization parameters
     const result = await queryConfig(
-      `EXEC GET_SITES_BY_CUSTID_ORG @p1, @p2`,
-      { p1: customerId, p2: orgString },
+      `SELECT site, flag_overriden_here, flag_overriden_below
+       FROM Config.SitesFlagged(@p1, @p2, @p3)
+       ORDER BY site`,
+      {
+        p1: { type: sql.VarChar(100), value: custIdShort },
+        p2: { type: sql.VarChar(100), value: category },
+        p3: { type: sql.VarChar(100), value: orgString }
+      },
       getQueryOptions(req)
     );
 
@@ -316,30 +328,43 @@ async function getSites(req, res) {
       sites: result.recordset
     }, result, req));
   } catch (error) {
-    reqLog.error('Get sites error', { err: error.message, customerId: req.query.customerId, organization: req.query.organization });
+    reqLog.error('Get sites error', { err: error.message, customerId: req.query.customerId, organization: req.query.organization, category: req.query.category });
     res.status(500).json({ error: 'Failed to retrieve sites' });
   }
 }
 
-// Get agents using stored procedure
-// Maps to: GET_AGENTS_BY_CUSTID_ORG_SITE
+// Get agents using Config.AgentsFlagged TVF (requires category to show override flags)
 async function getAgents(req, res) {
   const reqLog = req.log || log;
   try {
-    const { customerId, organization, site } = req.query;
+    const { customerId, organization, site, category } = req.query;
 
     if (!customerId || !organization || !site) {
       return res.status(400).json({ error: 'customerId, organization, and site are required' });
+    }
+
+    if (!category) {
+      return res.status(400).json({ error: 'category is required' });
     }
 
     // Ensure string types
     const orgString = typeof organization === 'string' ? organization : String(organization);
     const siteString = typeof site === 'string' ? site : String(site);
 
-    // Use positional parameters like ASCX does
+    // ASCX uses first 6 chars of customerId
+    const custIdShort = customerId.substring(0, 6);
+
+    // Call the TVF with CustomerID, Category, Organization, and Site parameters
     const result = await queryConfig(
-      `EXEC GET_AGENTS_BY_CUSTID_ORG_SITE @p1, @p2, @p3`,
-      { p1: customerId, p2: orgString, p3: siteString },
+      `SELECT agent, flag_overriden_here
+       FROM Config.AgentsFlagged(@p1, @p2, @p3, @p4)
+       ORDER BY agent`,
+      {
+        p1: { type: sql.VarChar(100), value: custIdShort },
+        p2: { type: sql.VarChar(100), value: category },
+        p3: { type: sql.VarChar(100), value: orgString },
+        p4: { type: sql.VarChar(255), value: siteString }
+      },
       getQueryOptions(req)
     );
 
@@ -348,7 +373,7 @@ async function getAgents(req, res) {
       agents: result.recordset
     }, result, req));
   } catch (error) {
-    reqLog.error('Get agents error', { err: error.message, customerId: req.query.customerId, organization: req.query.organization, site: req.query.site });
+    reqLog.error('Get agents error', { err: error.message, customerId: req.query.customerId, organization: req.query.organization, site: req.query.site, category: req.query.category });
     res.status(500).json({ error: 'Failed to retrieve agents' });
   }
 }

@@ -107,9 +107,14 @@ export const useConfigStore = defineStore('config', {
       }
     },
 
-    async loadSites(customerId, organization) {
+    async loadSites(customerId, organization, category) {
       try {
-        const response = await api.getSites(customerId, organization);
+        // Sites require category to be selected (for override flags)
+        if (!category) {
+          this.sites = [];
+          return;
+        }
+        const response = await api.getSites(customerId, organization, category);
         this.sites = response.data.sites;
       } catch (error) {
         this.error = error.response?.data?.error || 'Failed to load sites';
@@ -117,9 +122,14 @@ export const useConfigStore = defineStore('config', {
       }
     },
 
-    async loadAgents(customerId, organization, site) {
+    async loadAgents(customerId, organization, site, category) {
       try {
-        const response = await api.getAgents(customerId, organization, site);
+        // Agents require category to be selected (for override flags)
+        if (!category) {
+          this.agents = [];
+          return;
+        }
+        const response = await api.getAgents(customerId, organization, site, category);
         this.agents = response.data.agents;
       } catch (error) {
         this.error = error.response?.data?.error || 'Failed to load agents';
