@@ -33,53 +33,62 @@
           </option>
         </select>
 
-        <select
-          v-model="selectedOrganization"
-          @change="handleOrganizationChange"
-          :disabled="!selectedCategory"
-        >
-          <option value="">Choose Organization</option>
-          <option
-            v-for="org in configStore.organizations"
-            :key="org.orgid"
-            :value="org.orgname"
-            :class="getOrgOptionClass(org)"
+        <div class="select-wrapper" :class="{ 'has-asterisk-prefix': hasOrgAsterisk() }">
+          <select
+            v-model="selectedOrganization"
+            @change="handleOrganizationChange"
+            :disabled="!selectedCategory"
+            :class="{ 'select-bold': isSelectedOrgBold() }"
           >
-            {{ formatOrgName(org) }}
-          </option>
-        </select>
+            <option value="">Choose Organization</option>
+            <option
+              v-for="org in configStore.organizations"
+              :key="org.orgid"
+              :value="org.orgname"
+              :class="getOrgOptionClass(org)"
+            >
+              {{ formatOrgName(org) }}
+            </option>
+          </select>
+        </div>
 
-        <select
-          v-model="selectedSite"
-          @change="handleSiteChange"
-          :disabled="!selectedOrganization"
-        >
-          <option value="">Choose Site</option>
-          <option
-            v-for="site in configStore.sites"
-            :key="site.site"
-            :value="site.site"
-            :class="getSiteOptionClass(site)"
+        <div class="select-wrapper" :class="{ 'has-asterisk-prefix': hasSiteAsterisk() }">
+          <select
+            v-model="selectedSite"
+            @change="handleSiteChange"
+            :disabled="!selectedOrganization"
+            :class="{ 'select-bold': isSelectedSiteBold() }"
           >
-            {{ formatSiteName(site) }}
-          </option>
-        </select>
+            <option value="">Choose Site</option>
+            <option
+              v-for="site in configStore.sites"
+              :key="site.site"
+              :value="site.site"
+              :class="getSiteOptionClass(site)"
+            >
+              {{ formatSiteName(site) }}
+            </option>
+          </select>
+        </div>
 
-        <select
-          v-model="selectedAgent"
-          @change="handleAgentChange"
-          :disabled="!selectedSite"
-        >
-          <option value="">Choose Agent</option>
-          <option
-            v-for="agent in configStore.agents"
-            :key="agent.agent"
-            :value="agent.agent"
-            :class="getAgentOptionClass(agent)"
+        <div class="select-wrapper">
+          <select
+            v-model="selectedAgent"
+            @change="handleAgentChange"
+            :disabled="!selectedSite"
+            :class="{ 'select-bold': isSelectedAgentBold() }"
           >
-            {{ agent.agent }}
-          </option>
-        </select>
+            <option value="">Choose Agent</option>
+            <option
+              v-for="agent in configStore.agents"
+              :key="agent.agent"
+              :value="agent.agent"
+              :class="getAgentOptionClass(agent)"
+            >
+              {{ agent.agent }}
+            </option>
+          </select>
+        </div>
 
         <button @click="loadData" :disabled="!selectedCategory" class="load-btn">
           Load
@@ -705,6 +714,56 @@ function getAgentOptionClass(agent) {
   const overridenHere = agent.flag_overriden_here === true || agent.flag_overriden_here === 1;
   return overridenHere ? 'agent-overridden-here' : '';
 }
+
+// Display formatters for selected values (closed dropdown)
+const displayedOrganization = computed(() => {
+  if (!selectedOrganization.value) return '';
+  const org = configStore.organizations.find(o => o.orgname === selectedOrganization.value);
+  return org ? formatOrgName(org) : selectedOrganization.value;
+});
+
+const displayedSite = computed(() => {
+  if (!selectedSite.value) return '';
+  const site = configStore.sites.find(s => s.site === selectedSite.value);
+  return site ? formatSiteName(site) : selectedSite.value;
+});
+
+const displayedAgent = computed(() => {
+  if (!selectedAgent.value) return '';
+  return selectedAgent.value; // Agents don't have asterisk prefix (no children)
+});
+
+// Check if selected item has bold styling
+function isSelectedOrgBold() {
+  if (!selectedOrganization.value) return false;
+  const org = configStore.organizations.find(o => o.orgname === selectedOrganization.value);
+  return org ? (org.flag_overriden_here === true || org.flag_overriden_here === 1) : false;
+}
+
+function isSelectedSiteBold() {
+  if (!selectedSite.value) return false;
+  const site = configStore.sites.find(s => s.site === selectedSite.value);
+  return site ? (site.flag_overriden_here === true || site.flag_overriden_here === 1) : false;
+}
+
+function isSelectedAgentBold() {
+  if (!selectedAgent.value) return false;
+  const agent = configStore.agents.find(a => a.agent === selectedAgent.value);
+  return agent ? (agent.flag_overriden_here === true || agent.flag_overriden_here === 1) : false;
+}
+
+// Check if selected item should show asterisk prefix
+function hasOrgAsterisk() {
+  if (!selectedOrganization.value) return false;
+  const org = configStore.organizations.find(o => o.orgname === selectedOrganization.value);
+  return org ? (org.flag_overriden_below === true || org.flag_overriden_below === 1) : false;
+}
+
+function hasSiteAsterisk() {
+  if (!selectedSite.value) return false;
+  const site = configStore.sites.find(s => s.site === selectedSite.value);
+  return site ? (site.flag_overriden_below === true || site.flag_overriden_below === 1) : false;
+}
 </script>
 
 <style scoped>
@@ -755,6 +814,39 @@ header h1 {
   align-items: center;
 }
 
+/* Select wrapper for asterisk prefix */
+.select-wrapper {
+  position: relative;
+  flex: 1 1 180px;
+  min-width: 150px;
+}
+
+.select-wrapper select {
+  width: 100%;
+}
+
+/* Add asterisk prefix to closed select when flag_overriden_below is true */
+.select-wrapper.has-asterisk-prefix select:not(:focus) {
+  padding-left: 1.5rem;
+}
+
+.select-wrapper.has-asterisk-prefix::before {
+  content: '*';
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: inherit;
+  z-index: 1;
+  font-size: 1rem;
+}
+
+/* Hide asterisk when dropdown is open (focused) */
+.select-wrapper.has-asterisk-prefix select:focus::before {
+  content: none;
+}
+
 select {
   padding: 0.5rem;
   border: 1px solid #ddd;
@@ -766,6 +858,11 @@ select {
 select option.org-overridden-here,
 select option.site-overridden-here,
 select option.agent-overridden-here {
+  font-weight: bold;
+}
+
+/* Apply bold to select when a bold option is selected */
+select.select-bold {
   font-weight: bold;
 }
 
@@ -1133,6 +1230,8 @@ select option.agent-overridden-here {
   flex-shrink: 0;
   background-color: white;
   cursor: pointer;
+  color: #0a5591;
+  font-weight: 500;
 }
 
 .config-item textarea {
