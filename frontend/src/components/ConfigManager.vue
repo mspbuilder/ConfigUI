@@ -119,7 +119,7 @@
             <span v-if="getTooltip(config)" class="tooltip" :title="getTooltip(config)">?</span>
             <span v-else class="tooltip-spacer"></span>
             <!-- Parent Value (inherited from hierarchy) -->
-            <div v-if="hasParentValue(config)" class="parent-value-cell" :title="`Inherited from ${getParentLevel(config)}`">
+            <div v-if="hasParentValue(config)" class="parent-value-cell" :title="`Overridden from ${getParentLevel(config)}`">
               <span class="parent-label">↑</span>
               <span class="parent-value">{{ getParentValue(config) }}</span>
             </div>
@@ -279,7 +279,14 @@ function getParentValue(config) {
 function getParentLevel(config) {
   const level = config.ParentLevel || config.parentlevel;
   if (level === null || level === undefined) return null;
-  const levelMap = ['Global', 'Customer', 'Org', 'Site', 'Agent'];
+  // Level mapping: 1=Customer, 2=Org, 3=Site, 4=Agent (0=Global is implicit parent of Customer)
+  const levelMap = {
+    0: 'Global',
+    1: 'Customer',
+    2: 'Org',
+    3: 'Site',
+    4: 'Agent'
+  };
   return levelMap[level] || level;
 }
 
