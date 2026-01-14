@@ -46,8 +46,8 @@ function logBlockedWrite(reqLog, operation, sqlQuery, params) {
   return { sql: sqlQuery, params, formattedSql: formatted };
 }
 
-// Get configs using the actual stored procedure from ASCX
-// Maps to: GET_CONFIG_DATA_BY_CUSTID_CATEGORY_ORG_SITE_AGENT
+// Get configs using Config.CfgOverridesWithHierarchy TVF (replaces GET_CONFIG_DATA_BY_CUSTID_CATEGORY_ORG_SITE_AGENT)
+// TVF provides hierarchy context (ParentValue, ParentLevel, ParentConfigID) and excludes legacy Count column
 async function getCustomerConfigs(req, res) {
   const reqLog = req.log || log;
   try {
@@ -62,10 +62,11 @@ async function getCustomerConfigs(req, res) {
     const siteString = site ? String(site) : '';
     const agentString = agent ? String(agent) : '';
 
-    // Use positional parameters with explicit VARCHAR types to match SP definition
-    // SP params: @CUSTID varchar(10), @CAT varchar(100), @ORG varchar(100), @SITE varchar(255), @AGENT varchar(255)
+    // Use TVF with ORDER BY for consistent sorting
+    // TVF params: @CUSTID varchar(10), @CAT varchar(100), @ORG varchar(100), @SITE varchar(255), @AGENT varchar(255)
     const result = await queryConfig(
-      `EXEC GET_CONFIG_DATA_BY_CUSTID_CATEGORY_ORG_SITE_AGENT @p1, @p2, @p3, @p4, @p5`,
+      `SELECT * FROM Config.CfgOverridesWithHierarchy(@p1, @p2, @p3, @p4, @p5)
+       ORDER BY Category_Sort, Section_Sort, Property_Sort, Comment_Sort`,
       {
         p1: { type: sql.VarChar(10), value: customerId },
         p2: { type: sql.VarChar(100), value: category },

@@ -9,10 +9,13 @@ USE [Configurations]
 GO
 
 -- ============================================================================
--- STORED PROCEDURE PERMISSIONS FOR Config_API
+-- STORED PROCEDURE AND TVF PERMISSIONS FOR Config_API
 -- ============================================================================
 
--- Config data retrieval
+-- Config data retrieval (TVFs)
+GRANT SELECT ON [Config].[CfgOverridesWithHierarchy] TO [Config_API];
+
+-- Config data retrieval (Stored Procedures - legacy, kept for compatibility)
 GRANT EXECUTE ON [dbo].[GET_CONFIG_DATA_BY_CUSTID_CATEGORY_ORG_SITE_AGENT] TO [Config_API];
 GRANT EXECUTE ON [dbo].[GET_DEFAULT_CONFIG_DATA_BY_CATEGORY] TO [Config_API];
 GRANT EXECUTE ON [dbo].[GET_CONFIG_DATA_BY_Configuration_Overrides_ID] TO [Config_API];

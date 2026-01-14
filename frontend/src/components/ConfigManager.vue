@@ -118,6 +118,12 @@
             </div>
             <span v-if="getTooltip(config)" class="tooltip" :title="getTooltip(config)">?</span>
             <span v-else class="tooltip-spacer"></span>
+            <!-- Parent Value (inherited from hierarchy) -->
+            <div v-if="hasParentValue(config)" class="parent-value-cell" :title="`Inherited from ${getParentLevel(config)}`">
+              <span class="parent-label">↑</span>
+              <span class="parent-value">{{ getParentValue(config) }}</span>
+            </div>
+            <div v-else class="parent-value-cell parent-empty"></div>
             <!-- Dropdown for Y/N and other dropdown datatypes -->
             <select
               v-if="isDropdownField(config)"
@@ -264,6 +270,22 @@ function getTooltip(config) {
 
 function getPlaceholder(config) {
   return config.placeholder || config.Placeholder || '';
+}
+
+function getParentValue(config) {
+  return config.ParentValue || config.parentvalue || '';
+}
+
+function getParentLevel(config) {
+  const level = config.ParentLevel || config.parentlevel;
+  if (level === null || level === undefined) return null;
+  const levelMap = ['Global', 'Customer', 'Org', 'Site', 'Agent'];
+  return levelMap[level] || level;
+}
+
+function hasParentValue(config) {
+  const parentVal = getParentValue(config);
+  return parentVal !== null && parentVal !== undefined && parentVal !== '';
 }
 
 function isPasswordField(config) {
@@ -722,7 +744,7 @@ select option.agent-overridden-here {
 
 .config-item {
   display: grid;
-  grid-template-columns: 180px auto 1fr auto;
+  grid-template-columns: 180px auto 200px 1fr auto;
   gap: 0.5rem;
   padding: 0.35rem 0.5rem;
   border-bottom: 1px solid #f0f0f0;
@@ -757,6 +779,39 @@ select option.agent-overridden-here {
   color: #888;
   cursor: help;
   font-size: 0.75rem;
+}
+
+.parent-value-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.5rem;
+  background: #f0f7ff;
+  border: 1px solid #d0e7ff;
+  border-radius: 3px;
+  font-size: 0.875rem;
+  min-height: 1.75rem;
+  box-sizing: border-box;
+}
+
+.parent-value-cell.parent-empty {
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.parent-label {
+  color: #0a5591;
+  font-weight: bold;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.parent-value {
+  color: #555;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: italic;
 }
 
 .config-item .secure-field {
@@ -895,7 +950,8 @@ select option.agent-overridden-here {
   }
 
   .config-item .tooltip,
-  .config-item .tooltip-spacer {
+  .config-item .tooltip-spacer,
+  .config-item .parent-value-cell {
     display: none;
   }
 
