@@ -158,6 +158,26 @@
               rows="1"
             ></textarea>
             <button v-if="isNonDefaultTask(config)" @click="deleteConfig(getConfigId(config))" class="delete-btn" title="Remove Task">X</button>
+
+            <!-- Descendants Tree View -->
+            <div v-if="hasDescendants(config)" class="descendants-tree">
+              <button @click="toggleDescendants(config)" class="tree-toggle">
+                <span class="tree-icon">{{ isDescendantsExpanded(config) ? '▼' : '▶' }}</span>
+                <span class="tree-label">{{ getDescendantsCount(config) }} override{{ getDescendantsCount(config) > 1 ? 's' : '' }} below</span>
+              </button>
+
+              <div v-show="isDescendantsExpanded(config)" class="tree-content">
+                <div v-for="descendant in getDescendants(config)" :key="descendant.id" class="tree-node">
+                  <div class="tree-node-content">
+                    <span class="tree-level-icon">↓</span>
+                    <span class="tree-level-type">{{ descendant.levelType }}</span>
+                    <span class="tree-name">{{ descendant.name || '(unnamed)' }}</span>
+                    <span class="tree-value" v-if="descendant.Value">= {{ descendant.Value }}</span>
+                    <span class="tree-value-empty" v-else>(inherits)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -198,6 +218,9 @@ const selectedAgent = ref('');
 
 // Track expanded sections - empty Set means all collapsed by default
 const expandedSections = ref(new Set());
+
+// Track expanded descendants trees
+const expandedDescendants = ref(new Set());
 
 // Secure field editor state
 const secureFieldEditor = reactive({
@@ -298,6 +321,42 @@ function getParentLevel(config) {
 function hasParentValue(config) {
   const parentVal = getParentValue(config);
   return parentVal !== null && parentVal !== undefined && parentVal !== '';
+}
+
+// Descendants helper functions
+function getDescendants(config) {
+  const json = config.DescendantsJson || config.descendantsjson;
+  if (!json) return [];
+
+  try {
+    return typeof json === 'string' ? JSON.parse(json) : json;
+  } catch (e) {
+    console.error('Failed to parse DescendantsJson:', e);
+    return [];
+  }
+}
+
+function hasDescendants(config) {
+  const descendants = getDescendants(config);
+  return descendants.length > 0;
+}
+
+function getDescendantsCount(config) {
+  return getDescendants(config).length;
+}
+
+function toggleDescendants(config) {
+  const configId = getConfigId(config);
+  if (expandedDescendants.value.has(configId)) {
+    expandedDescendants.value.delete(configId);
+  } else {
+    expandedDescendants.value.add(configId);
+  }
+  expandedDescendants.value = new Set(expandedDescendants.value);
+}
+
+function isDescendantsExpanded(config) {
+  return expandedDescendants.value.has(getConfigId(config));
 }
 
 function isPasswordField(config) {
@@ -824,6 +883,97 @@ select option.agent-overridden-here {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-style: italic;
+}
+
+/* Descendants Tree View */
+.descendants-tree {
+  grid-column: 1 / -1;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.tree-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #0a5591;
+  font-weight: 500;
+}
+
+.tree-toggle:hover {
+  background: #e8f4f8;
+  border-radius: 3px;
+}
+
+.tree-icon {
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.tree-label {
+  color: #0a5591;
+}
+
+.tree-content {
+  margin-top: 0.5rem;
+  padding-left: 1.5rem;
+  border-left: 2px solid #d0e7ff;
+}
+
+.tree-node {
+  padding: 0.4rem 0;
+}
+
+.tree-node-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  padding: 0.3rem 0.5rem;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 3px;
+}
+
+.tree-level-icon {
+  color: #0a5591;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.tree-level-type {
+  color: #666;
+  font-weight: 500;
+  min-width: 80px;
+}
+
+.tree-name {
+  color: #333;
+  font-weight: 500;
+  flex: 1;
+}
+
+.tree-value {
+  color: #0a5591;
+  font-family: monospace;
+  font-size: 0.85rem;
+  padding: 0.15rem 0.4rem;
+  background: #f0f7ff;
+  border-radius: 2px;
+}
+
+.tree-value-empty {
+  color: #999;
+  font-style: italic;
+  font-size: 0.85rem;
 }
 
 .config-item .secure-field {
