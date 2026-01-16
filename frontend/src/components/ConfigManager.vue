@@ -90,10 +90,6 @@
           </select>
         </div>
 
-        <button @click="loadData" :disabled="!selectedCategory" class="load-btn">
-          Load
-        </button>
-
         <label class="global-diff-toggle">
           <input type="checkbox" v-model="globalShowDiffOnly" />
           <span>Show differences only</span>
@@ -612,6 +608,8 @@ async function handleCategoryChange() {
   // Reload organizations with the new category (required for override flags)
   if (selectedCategory.value && effectiveCustomerId.value) {
     await configStore.loadOrganizations(effectiveCustomerId.value, selectedCategory.value);
+    // Auto-load configs when category is selected
+    await loadData();
   }
 }
 
@@ -625,6 +623,10 @@ async function handleOrganizationChange() {
   // Reload sites with the new organization (required for override flags)
   if (selectedOrganization.value && effectiveCustomerId.value && selectedCategory.value) {
     await configStore.loadSites(effectiveCustomerId.value, selectedOrganization.value, selectedCategory.value);
+  }
+  // Auto-load configs when organization changes
+  if (selectedCategory.value) {
+    await loadData();
   }
 }
 
@@ -643,10 +645,18 @@ async function handleSiteChange() {
       selectedCategory.value
     );
   }
+  // Auto-load configs when site changes
+  if (selectedCategory.value) {
+    await loadData();
+  }
 }
 
 async function handleAgentChange() {
   configStore.setSelectedAgent(selectedAgent.value);
+  // Auto-load configs when agent changes
+  if (selectedCategory.value) {
+    await loadData();
+  }
 }
 
 async function loadData() {
@@ -873,23 +883,6 @@ select.select-bold {
 .customer-select {
   border-color: #0a5591;
   background-color: #f0f7ff;
-}
-
-.load-btn {
-  padding: 0.5rem 2rem;
-  background: linear-gradient(#0dccea, #0d70ea);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
-
-.load-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .global-diff-toggle {
