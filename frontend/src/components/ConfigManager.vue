@@ -129,12 +129,6 @@
               </div>
               <span v-if="getTooltip(config)" class="tooltip" :title="getTooltip(config)">?</span>
               <span v-else class="tooltip-spacer"></span>
-              <!-- Parent Value (inherited from hierarchy) -->
-              <div v-if="hasParentValue(config)" class="parent-value-cell" :title="`Overridden from ${getParentLevel(config)}`">
-                <span class="parent-label">↑</span>
-                <span class="parent-value">{{ getParentValue(config) }}</span>
-              </div>
-              <div v-else class="parent-value-cell parent-empty"></div>
               <!-- Dropdown for Y/N and other dropdown datatypes -->
               <select
                 v-if="isDropdownField(config)"
@@ -168,6 +162,14 @@
                 :disabled="!canEdit"
                 rows="1"
               ></textarea>
+              <!-- Parent Value (right of value field) -->
+              <span
+                v-if="hasParentValue(config)"
+                class="parent-value-text"
+                :class="{ 'parent-matches': parentMatchesValue(config) }"
+                :title="`Inherited from ${getParentLevel(config)}`"
+              >Parent: {{ getParentValue(config) }}</span>
+              <span v-else class="parent-value-spacer"></span>
               <!-- Expand button for descendants - inline, right of value -->
               <button
                 v-if="hasDescendants(config)"
@@ -350,6 +352,12 @@ function getParentLevel(config) {
 function hasParentValue(config) {
   const parentVal = getParentValue(config);
   return parentVal !== null && parentVal !== undefined && parentVal !== '';
+}
+
+function parentMatchesValue(config) {
+  const currentVal = getValue(config) || '';
+  const parentVal = getParentValue(config) || '';
+  return currentVal === parentVal;
 }
 
 // Descendants helper functions
@@ -1002,7 +1010,7 @@ select.select-bold {
 
 .config-item {
   display: grid;
-  grid-template-columns: 180px auto 200px 1fr auto auto;
+  grid-template-columns: 180px auto 1fr auto auto auto auto;
   gap: 0.5rem;
   padding: 0.35rem 0.5rem;
   align-items: start;
@@ -1034,37 +1042,23 @@ select.select-bold {
   font-size: 0.75rem;
 }
 
-.parent-value-cell {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.3rem 0.5rem;
-  background: #f0f7ff;
-  border: 1px solid #d0e7ff;
-  border-radius: 3px;
-  font-size: 0.875rem;
-  min-height: 1.75rem;
-  box-sizing: border-box;
-}
-
-.parent-value-cell.parent-empty {
-  background: transparent;
-  border: 1px solid transparent;
-}
-
-.parent-label {
-  color: #0a5591;
-  font-weight: bold;
-  font-size: 0.9rem;
-  flex-shrink: 0;
-}
-
-.parent-value {
-  color: #555;
+/* Parent value text (right of value field) */
+.parent-value-text {
+  color: #333;
+  font-size: 0.8rem;
+  padding-top: 0.35rem;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  font-style: italic;
+  max-width: 200px;
+}
+
+.parent-value-text.parent-matches {
+  color: #999;
+}
+
+.parent-value-spacer {
+  width: 0;
 }
 
 
@@ -1299,7 +1293,8 @@ select.select-bold {
 
   .config-item .tooltip,
   .config-item .tooltip-spacer,
-  .config-item .parent-value-cell {
+  .parent-value-text,
+  .parent-value-spacer {
     display: none;
   }
 
