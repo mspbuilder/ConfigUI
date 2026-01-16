@@ -3,6 +3,10 @@
     <header>
       <h1>Configuration Manager</h1>
       <div class="user-info">
+        <label v-if="authStore.isAdmin" class="admin-view-toggle">
+          <input type="checkbox" v-model="adminViewEnabled" />
+          <span>Admin View</span>
+        </label>
         <span>{{ authStore.user?.username }}</span>
         <button @click="handleLogout" class="logout-btn">Logout</button>
       </div>
@@ -11,7 +15,7 @@
     <div class="filters">
       <div class="filter-row">
         <select
-          v-if="authStore.isAdmin"
+          v-if="isEffectiveAdmin"
           v-model="selectedCustomer"
           @change="handleCustomerChange"
           class="customer-select"
@@ -129,47 +133,49 @@
               </div>
               <span v-if="getTooltip(config)" class="tooltip" :title="getTooltip(config)">?</span>
               <span v-else class="tooltip-spacer"></span>
-              <!-- Dropdown for Y/N and other dropdown datatypes -->
-              <select
-                v-if="isDropdownField(config)"
-                :value="getValue(config)"
-                @change="updateValue(config, $event.target.value, getCurrentLevel())"
-                :disabled="!canEdit"
-                class="config-dropdown"
-              >
-                <option v-for="opt in getDropdownOptions(config)" :key="opt" :value="opt">
-                  {{ opt }}
-                </option>
-              </select>
-              <!-- Secure fields (password fields OR Cloud Script Variables) - click to edit -->
-              <div
-                v-else-if="isSecureField(config)"
-                class="secure-field"
-                @click="canEdit && openSecureFieldEditor(config)"
-                :class="{ disabled: !canEdit, 'has-value': getValue(config) }"
-              >
-                <span v-if="isPasswordField(config)" class="masked-value">******</span>
-                <span v-else class="preview-value">{{ getValue(config) || '(empty)' }}</span>
-                <span class="edit-hint" v-if="canEdit">Click to edit</span>
+              <!-- Value field with parent value inline -->
+              <div class="value-with-parent">
+                <!-- Dropdown for Y/N and other dropdown datatypes -->
+                <select
+                  v-if="isDropdownField(config)"
+                  :value="getValue(config)"
+                  @change="updateValue(config, $event.target.value, getCurrentLevel())"
+                  :disabled="!canEdit"
+                  class="config-dropdown"
+                >
+                  <option v-for="opt in getDropdownOptions(config)" :key="opt" :value="opt">
+                    {{ opt }}
+                  </option>
+                </select>
+                <!-- Secure fields (password fields OR Cloud Script Variables) - click to edit -->
+                <div
+                  v-else-if="isSecureField(config)"
+                  class="secure-field"
+                  @click="canEdit && openSecureFieldEditor(config)"
+                  :class="{ disabled: !canEdit, 'has-value': getValue(config) }"
+                >
+                  <span v-if="isPasswordField(config)" class="masked-value">******</span>
+                  <span v-else class="preview-value">{{ getValue(config) || '(empty)' }}</span>
+                  <span class="edit-hint" v-if="canEdit">Click to edit</span>
+                </div>
+                <!-- Default: textarea for text fields -->
+                <textarea
+                  v-else
+                  :value="getValue(config)"
+                  :placeholder="getPlaceholder(config)"
+                  @change="updateValue(config, $event.target.value, getCurrentLevel())"
+                  @input="autoResize($event)"
+                  :disabled="!canEdit"
+                  rows="1"
+                ></textarea>
+                <!-- Parent Value (immediately right of value) - only show at customer level if admin -->
+                <span
+                  v-if="hasParentValue(config) && (getCurrentLevel() !== 'CUSTOMER' || isEffectiveAdmin)"
+                  class="parent-value-text"
+                  :class="{ 'parent-matches': parentMatchesValue(config) }"
+                  :title="`Inherited from ${getParentLevel(config)}`"
+                >Parent: {{ getParentValue(config) }}</span>
               </div>
-              <!-- Default: textarea for text fields -->
-              <textarea
-                v-else
-                :value="getValue(config)"
-                :placeholder="getPlaceholder(config)"
-                @change="updateValue(config, $event.target.value, getCurrentLevel())"
-                @input="autoResize($event)"
-                :disabled="!canEdit"
-                rows="1"
-              ></textarea>
-              <!-- Parent Value (right of value field) -->
-              <span
-                v-if="hasParentValue(config)"
-                class="parent-value-text"
-                :class="{ 'parent-matches': parentMatchesValue(config) }"
-                :title="`Inherited from ${getParentLevel(config)}`"
-              >Parent: {{ getParentValue(config) }}</span>
-              <span v-else class="parent-value-spacer"></span>
               <!-- Expand button for descendants - inline, right of value -->
               <button
                 v-if="hasDescendants(config)"
@@ -226,7 +232,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useConfigStore } from '../stores/config';
@@ -243,6 +249,12 @@ const selectedCategory = ref('');
 const selectedOrganization = ref('');
 const selectedSite = ref('');
 const selectedAgent = ref('');
+
+// Admin view toggle - when disabled, admin behaves as standard user
+const adminViewEnabled = ref(true);
+
+// Effective admin status - true only if user is admin AND admin view is enabled
+const isEffectiveAdmin = computed(() => authStore.isAdmin && adminViewEnabled.value);
 
 // Track expanded sections - empty Set means all collapsed by default
 const expandedSections = ref(new Set());
@@ -298,7 +310,7 @@ const canEdit = computed(() => {
 
 // Get the effective customer ID (admin-selected or user's own)
 const effectiveCustomerId = computed(() => {
-  if (authStore.isAdmin && selectedCustomer.value) {
+  if (isEffectiveAdmin.value && selectedCustomer.value) {
     return selectedCustomer.value;
   }
   return authStore.user?.customerId;
@@ -591,6 +603,25 @@ onMounted(async () => {
   }
 });
 
+// Watch for admin view toggle changes
+watch(adminViewEnabled, async (enabled) => {
+  if (!authStore.isAdmin) return;
+
+  // Reset selections when toggling admin view
+  selectedCustomer.value = '';
+  selectedCategory.value = '';
+  selectedOrganization.value = '';
+  selectedSite.value = '';
+  selectedAgent.value = '';
+  configStore.configs = [];
+
+  if (!enabled && authStore.user?.customerId) {
+    // Switching to standard user view - use user's own customer
+    configStore.setSelectedCustomerId(authStore.user.customerId);
+    await configStore.loadCategories(authStore.user.customerId);
+  }
+});
+
 async function handleCustomerChange() {
   // Reset dependent selections when customer changes
   selectedCategory.value = '';
@@ -823,6 +854,29 @@ header h1 {
   font-weight: bold;
 }
 
+.admin-view-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.4rem 0.6rem;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+.admin-view-toggle:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.admin-view-toggle input[type="checkbox"] {
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+}
+
 .filters {
   background: white;
   padding: 1rem 2rem;
@@ -1010,7 +1064,7 @@ select.select-bold {
 
 .config-item {
   display: grid;
-  grid-template-columns: 180px auto 1fr auto auto auto auto;
+  grid-template-columns: 180px auto 1fr auto auto;
   gap: 0.5rem;
   padding: 0.35rem 0.5rem;
   align-items: start;
@@ -1042,23 +1096,31 @@ select.select-bold {
   font-size: 0.75rem;
 }
 
-/* Parent value text (right of value field) */
+/* Value field with parent value inline */
+.value-with-parent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.value-with-parent select,
+.value-with-parent textarea,
+.value-with-parent .secure-field {
+  flex: 1;
+  min-width: 0;
+}
+
 .parent-value-text {
   color: #333;
   font-size: 0.8rem;
   padding-top: 0.35rem;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 200px;
+  flex-shrink: 0;
 }
 
 .parent-value-text.parent-matches {
   color: #999;
-}
-
-.parent-value-spacer {
-  width: 0;
 }
 
 
@@ -1293,8 +1355,7 @@ select.select-bold {
 
   .config-item .tooltip,
   .config-item .tooltip-spacer,
-  .parent-value-text,
-  .parent-value-spacer {
+  .parent-value-text {
     display: none;
   }
 
