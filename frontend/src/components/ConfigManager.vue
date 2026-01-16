@@ -93,6 +93,11 @@
         <button @click="loadData" :disabled="!selectedCategory" class="load-btn">
           Load
         </button>
+
+        <label class="global-diff-toggle">
+          <input type="checkbox" v-model="globalShowDiffOnly" />
+          <span>Show differences only</span>
+        </label>
       </div>
     </div>
 
@@ -121,82 +126,87 @@
         </div>
 
         <div class="config-items" v-show="isSectionExpanded(group.section)">
-          <div v-for="config in group.items" :key="getConfigId(config)" class="config-item">
-            <div class="label-cell">
-              <span class="property-name">{{ getProperty(config) }}</span>
-            </div>
-            <span v-if="getTooltip(config)" class="tooltip" :title="getTooltip(config)">?</span>
-            <span v-else class="tooltip-spacer"></span>
-            <!-- Parent Value (inherited from hierarchy) -->
-            <div v-if="hasParentValue(config)" class="parent-value-cell" :title="`Overridden from ${getParentLevel(config)}`">
-              <span class="parent-label">↑</span>
-              <span class="parent-value">{{ getParentValue(config) }}</span>
-            </div>
-            <div v-else class="parent-value-cell parent-empty"></div>
-            <!-- Dropdown for Y/N and other dropdown datatypes -->
-            <select
-              v-if="isDropdownField(config)"
-              :value="getValue(config)"
-              @change="updateValue(config, $event.target.value, getCurrentLevel())"
-              :disabled="!canEdit"
-              class="config-dropdown"
-            >
-              <option v-for="opt in getDropdownOptions(config)" :key="opt" :value="opt">
-                {{ opt }}
-              </option>
-            </select>
-            <!-- Secure fields (password fields OR Cloud Script Variables) - click to edit -->
-            <div
-              v-else-if="isSecureField(config)"
-              class="secure-field"
-              @click="canEdit && openSecureFieldEditor(config)"
-              :class="{ disabled: !canEdit, 'has-value': getValue(config) }"
-            >
-              <span v-if="isPasswordField(config)" class="masked-value">******</span>
-              <span v-else class="preview-value">{{ getValue(config) || '(empty)' }}</span>
-              <span class="edit-hint" v-if="canEdit">Click to edit</span>
-            </div>
-            <!-- Default: textarea for text fields -->
-            <textarea
-              v-else
-              :value="getValue(config)"
-              :placeholder="getPlaceholder(config)"
-              @change="updateValue(config, $event.target.value, getCurrentLevel())"
-              @input="autoResize($event)"
-              :disabled="!canEdit"
-              rows="1"
-            ></textarea>
-            <button v-if="isNonDefaultTask(config)" @click="deleteConfig(getConfigId(config))" class="delete-btn" title="Remove Task">X</button>
-
-            <!-- Descendants Tree View -->
-            <div v-if="hasDescendants(config)" class="descendants-tree">
-              <div class="tree-header">
-                <button @click="toggleDescendants(config)" class="tree-toggle">
-                  <span class="tree-icon">{{ isDescendantsExpanded(config) ? '▼' : '▶' }}</span>
-                  <span class="tree-label">{{ getDescendantsCount(config) }} override{{ getDescendantsCount(config) > 1 ? 's' : '' }} below</span>
-                </button>
-
-                <label class="tree-filter-toggle">
-                  <input
-                    type="checkbox"
-                    v-model="descendantsShowDiffOnly[getConfigId(config)]"
-                    @change="updateDescendantsFilter"
-                  />
-                  <span class="filter-label">Show differences only</span>
-                </label>
+          <div v-for="config in group.items" :key="getConfigId(config)" class="config-item-wrapper">
+            <div class="config-item">
+              <div class="label-cell">
+                <span class="property-name">{{ getProperty(config) }}</span>
               </div>
-
-              <div v-show="isDescendantsExpanded(config)" class="tree-content">
-                <div v-for="descendant in getFilteredDescendants(config)" :key="descendant.id" class="tree-node">
-                  <div class="tree-node-content">
-                    <span class="tree-level-icon">↓</span>
-                    <span class="tree-level-type">{{ descendant.levelType }}</span>
-                    <span class="tree-name">{{ descendant.name || '(unnamed)' }}</span>
-                    <span class="tree-value" v-if="descendant.Value">= {{ descendant.Value }}</span>
-                    <span class="tree-value-empty" v-else>(inherits)</span>
-                  </div>
-                </div>
+              <span v-if="getTooltip(config)" class="tooltip" :title="getTooltip(config)">?</span>
+              <span v-else class="tooltip-spacer"></span>
+              <!-- Parent Value (inherited from hierarchy) -->
+              <div v-if="hasParentValue(config)" class="parent-value-cell" :title="`Overridden from ${getParentLevel(config)}`">
+                <span class="parent-label">↑</span>
+                <span class="parent-value">{{ getParentValue(config) }}</span>
               </div>
+              <div v-else class="parent-value-cell parent-empty"></div>
+              <!-- Dropdown for Y/N and other dropdown datatypes -->
+              <select
+                v-if="isDropdownField(config)"
+                :value="getValue(config)"
+                @change="updateValue(config, $event.target.value, getCurrentLevel())"
+                :disabled="!canEdit"
+                class="config-dropdown"
+              >
+                <option v-for="opt in getDropdownOptions(config)" :key="opt" :value="opt">
+                  {{ opt }}
+                </option>
+              </select>
+              <!-- Secure fields (password fields OR Cloud Script Variables) - click to edit -->
+              <div
+                v-else-if="isSecureField(config)"
+                class="secure-field"
+                @click="canEdit && openSecureFieldEditor(config)"
+                :class="{ disabled: !canEdit, 'has-value': getValue(config) }"
+              >
+                <span v-if="isPasswordField(config)" class="masked-value">******</span>
+                <span v-else class="preview-value">{{ getValue(config) || '(empty)' }}</span>
+                <span class="edit-hint" v-if="canEdit">Click to edit</span>
+              </div>
+              <!-- Default: textarea for text fields -->
+              <textarea
+                v-else
+                :value="getValue(config)"
+                :placeholder="getPlaceholder(config)"
+                @change="updateValue(config, $event.target.value, getCurrentLevel())"
+                @input="autoResize($event)"
+                :disabled="!canEdit"
+                rows="1"
+              ></textarea>
+              <!-- Expand button for descendants - inline, right of value -->
+              <button
+                v-if="hasDescendants(config)"
+                @click="toggleDescendants(config)"
+                class="expand-btn"
+                :title="`${getDescendantsCount(config)} override${getDescendantsCount(config) > 1 ? 's' : ''} below`"
+              >
+                <span class="expand-icon">{{ isDescendantsExpanded(config) ? '▼' : '▶' }}</span>
+                <span class="expand-count">{{ getDescendantsCount(config) }}</span>
+              </button>
+              <span v-else class="expand-spacer"></span>
+              <button v-if="isNonDefaultTask(config)" @click="deleteConfig(getConfigId(config))" class="delete-btn" title="Remove Task">X</button>
+            </div>
+
+            <!-- Descendants Table - shown below the row when expanded -->
+            <div v-if="hasDescendants(config) && isDescendantsExpanded(config)" class="descendants-table-wrapper">
+              <table class="descendants-table">
+                <thead>
+                  <tr>
+                    <th>Level</th>
+                    <th>Name</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="descendant in getFilteredDescendants(config)" :key="descendant.id" class="descendant-row">
+                    <td class="desc-level">{{ descendant.levelType }}</td>
+                    <td class="desc-name">{{ descendant.name || '(unnamed)' }}</td>
+                    <td class="desc-value">
+                      <span v-if="descendant.Value">{{ descendant.Value }}</span>
+                      <span v-else class="inherits">(inherits)</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -242,8 +252,8 @@ const expandedSections = ref(new Set());
 // Track expanded descendants trees
 const expandedDescendants = ref(new Set());
 
-// Track "show differences only" filter per config item
-const descendantsShowDiffOnly = ref({});
+// Global "show differences only" toggle - defaults to ON
+const globalShowDiffOnly = ref(true);
 
 // Secure field editor state
 const secureFieldEditor = reactive({
@@ -382,17 +392,11 @@ function isDescendantsExpanded(config) {
   return expandedDescendants.value.has(getConfigId(config));
 }
 
-function updateDescendantsFilter() {
-  // Force reactivity update
-  descendantsShowDiffOnly.value = { ...descendantsShowDiffOnly.value };
-}
-
 function getFilteredDescendants(config) {
   const descendants = getDescendants(config);
-  const configId = getConfigId(config);
-  const showDiffOnly = descendantsShowDiffOnly.value[configId];
 
-  if (!showDiffOnly) {
+  // Use global toggle (defaults to ON)
+  if (!globalShowDiffOnly.value) {
     return descendants;
   }
 
@@ -888,6 +892,31 @@ select.select-bold {
   cursor: not-allowed;
 }
 
+.global-diff-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  color: #333;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.5rem 0.75rem;
+  background: #f0f7ff;
+  border: 1px solid #d0e7ff;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.global-diff-toggle:hover {
+  background: #e0efff;
+}
+
+.global-diff-toggle input[type="checkbox"] {
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+}
+
 .loading,
 .error {
   text-align: center;
@@ -970,18 +999,21 @@ select.select-bold {
   padding: 0.25rem 0.5rem;
 }
 
-.config-item {
-  display: grid;
-  grid-template-columns: 180px auto 200px 1fr auto;
-  gap: 0.5rem;
-  padding: 0.35rem 0.5rem;
+.config-item-wrapper {
   border-bottom: 1px solid #f0f0f0;
-  align-items: start;
-  font-size: 0.875rem;
 }
 
-.config-item:last-child {
+.config-item-wrapper:last-child {
   border-bottom: none;
+}
+
+.config-item {
+  display: grid;
+  grid-template-columns: 180px auto 200px 1fr auto auto;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  align-items: start;
+  font-size: 0.875rem;
 }
 
 .label-cell {
@@ -1042,123 +1074,6 @@ select.select-bold {
   font-style: italic;
 }
 
-/* Descendants Tree View */
-.descendants-tree {
-  grid-column: 1 / -1;
-  margin-top: 0.5rem;
-  padding: 0.5rem;
-  background: #f9f9f9;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-}
-
-.tree-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.tree-filter-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-  color: #666;
-  cursor: pointer;
-  user-select: none;
-}
-
-.tree-filter-toggle input[type="checkbox"] {
-  cursor: pointer;
-  width: 14px;
-  height: 14px;
-}
-
-.filter-label {
-  color: #555;
-}
-
-.tree-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: none;
-  border: none;
-  padding: 0.25rem 0.5rem;
-  cursor: pointer;
-  font-size: 0.875rem;
-  color: #0a5591;
-  font-weight: 500;
-}
-
-.tree-toggle:hover {
-  background: #e8f4f8;
-  border-radius: 3px;
-}
-
-.tree-icon {
-  font-size: 0.75rem;
-  color: #666;
-}
-
-.tree-label {
-  color: #0a5591;
-}
-
-.tree-content {
-  margin-top: 0.5rem;
-  padding-left: 1.5rem;
-  border-left: 2px solid #d0e7ff;
-}
-
-.tree-node {
-  padding: 0.4rem 0;
-}
-
-.tree-node-content {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  padding: 0.3rem 0.5rem;
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 3px;
-}
-
-.tree-level-icon {
-  color: #0a5591;
-  font-weight: bold;
-  font-size: 0.9rem;
-}
-
-.tree-level-type {
-  color: #666;
-  font-weight: 500;
-  min-width: 80px;
-}
-
-.tree-name {
-  color: #333;
-  font-weight: 500;
-  flex: 1;
-}
-
-.tree-value {
-  color: #0a5591;
-  font-family: monospace;
-  font-size: 0.85rem;
-  padding: 0.15rem 0.4rem;
-  background: #f0f7ff;
-  border-radius: 2px;
-}
-
-.tree-value-empty {
-  color: #999;
-  font-style: italic;
-  font-size: 0.85rem;
-}
 
 .config-item .secure-field {
   display: flex;
@@ -1248,6 +1163,37 @@ select.select-bold {
   border-color: #0a5591;
 }
 
+.expand-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  background: #f0f7ff;
+  border: 1px solid #d0e7ff;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: #0a5591;
+  white-space: nowrap;
+}
+
+.expand-btn:hover {
+  background: #e0efff;
+  border-color: #0a5591;
+}
+
+.expand-icon {
+  font-size: 0.7rem;
+}
+
+.expand-count {
+  font-weight: 600;
+}
+
+.expand-spacer {
+  width: 2.5rem;
+}
+
 .delete-btn {
   padding: 0.2rem 0.4rem;
   background: transparent;
@@ -1259,6 +1205,67 @@ select.select-bold {
 
 .delete-btn:hover {
   color: #c00;
+}
+
+/* Descendants Table */
+.descendants-table-wrapper {
+  margin: 0.25rem 0 0.5rem 180px;
+  padding: 0.5rem;
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.descendants-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.descendants-table th {
+  text-align: left;
+  padding: 0.4rem 0.75rem;
+  background: #e8f4f8;
+  border-bottom: 1px solid #d0e7ff;
+  color: #0a5591;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.descendants-table td {
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.descendants-table tr:last-child td {
+  border-bottom: none;
+}
+
+.descendant-row:hover {
+  background: #f0f7ff;
+}
+
+.desc-level {
+  color: #666;
+  font-weight: 500;
+  width: 100px;
+}
+
+.desc-name {
+  color: #333;
+  font-weight: 500;
+}
+
+.desc-value {
+  color: #0a5591;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+.desc-value .inherits {
+  color: #999;
+  font-style: italic;
+  font-family: inherit;
 }
 
 .toast {
@@ -1289,7 +1296,7 @@ select.select-bold {
 
 @media (max-width: 600px) {
   .config-item {
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto 1fr auto auto;
   }
 
   .config-item .label-cell {
@@ -1301,6 +1308,14 @@ select.select-bold {
   .config-item .tooltip-spacer,
   .config-item .parent-value-cell {
     display: none;
+  }
+
+  .descendants-table-wrapper {
+    margin-left: 0;
+  }
+
+  .global-diff-toggle {
+    flex: 1 1 100%;
   }
 
   .filters {
