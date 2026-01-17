@@ -11,7 +11,7 @@
           <input
             v-model="sectionName"
             type="text"
-            placeholder="e.g., DiskCheck"
+            placeholder="<VolumeID>"
             class="rmsdcc-input"
           />
         </label>
@@ -22,7 +22,7 @@
           <input
             v-model="propertyName"
             type="text"
-            placeholder="e.g., Threshold"
+            placeholder=""
             class="rmsdcc-input"
           />
         </label>
@@ -33,7 +33,7 @@
           <input
             v-model="propertyValue"
             type="text"
-            placeholder="e.g., 80"
+            placeholder=""
             class="rmsdcc-input"
             @keyup.enter="handleAdd"
           />

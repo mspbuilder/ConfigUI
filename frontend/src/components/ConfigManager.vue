@@ -109,14 +109,17 @@
     <div v-else-if="configStore.error" class="error">{{ configStore.error }}</div>
 
     <div v-else class="config-sections">
-      <AddSectionControl
-        :custom-sections-allowed="customSectionsAllowed"
-        @add-section="handleAddSection"
-      />
+      <!-- Category-specific custom section controls (replace generic AddSectionControl) -->
       <AddRMSDCCControl
         :category-name="selectedCategory"
         :custom-sections-allowed="customSectionsAllowed"
         @add-entry="handleAddRMSDCCEntry"
+      />
+      <!-- Generic AddSectionControl - only show if no category-specific control applies -->
+      <AddSectionControl
+        v-if="!hasCategorySpecificAddControl"
+        :custom-sections-allowed="customSectionsAllowed"
+        @add-section="handleAddSection"
       />
 
       <div
@@ -578,6 +581,16 @@ function getCurrentLevel() {
 // Check if current category allows custom sections
 const customSectionsAllowed = computed(() => {
   return configStore.selectedCategoryMeta?.custom_sections_allowed ?? false;
+});
+
+// Categories that have their own custom add-section controls (replace generic AddSectionControl)
+const CATEGORIES_WITH_CUSTOM_ADD_CONTROL = [
+  'RMSDCC - Disk Capacity Check'
+];
+
+// Check if current category has a category-specific add control
+const hasCategorySpecificAddControl = computed(() => {
+  return CATEGORIES_WITH_CUSTOM_ADD_CONTROL.includes(selectedCategory.value);
 });
 
 async function handleAddSection(sectionName) {
