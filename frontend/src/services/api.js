@@ -128,4 +128,9 @@ export default {
   createRMSDCCEntry(data) {
     return api.post('/rmsdcc', data);
   },
+
+  // Create RMM Maintenance task
+  createMaintenanceTask(data) {
+    return api.post('/configs/tasks', data);
+  },
 };

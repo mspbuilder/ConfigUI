@@ -242,6 +242,26 @@ export const useConfigStore = defineStore('config', {
       }
     },
 
+    async createMaintenanceTask({ taskName }) {
+      try {
+        const response = await api.createMaintenanceTask({
+          customerId: this.selectedCustomerId,
+          organization: this.selectedOrganization,
+          site: this.selectedSite,
+          agent: this.selectedAgent,
+          section: taskName
+        });
+        if (response.data.blocked) {
+          return { blocked: true, message: response.data.message };
+        }
+        await this.loadConfigs();
+        return { success: true };
+      } catch (error) {
+        this.error = error.response?.data?.error || 'Failed to create maintenance task';
+        throw error;
+      }
+    },
+
     setSelectedCustomerId(customerId) {
       this.selectedCustomerId = customerId;
       this.selectedCategory = null;

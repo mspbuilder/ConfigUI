@@ -115,6 +115,11 @@
         :custom-sections-allowed="customSectionsAllowed"
         @add-entry="handleAddRMSDCCEntry"
       />
+      <AddMaintenanceTaskControl
+        :category-name="selectedCategory"
+        :custom-sections-allowed="customSectionsAllowed"
+        @add-task="handleAddMaintenanceTask"
+      />
       <!-- Generic AddSectionControl - only show if no category-specific control applies -->
       <AddSectionControl
         v-if="!hasCategorySpecificAddControl"
@@ -246,6 +251,7 @@ import { useAuthStore } from '../stores/auth';
 import { useConfigStore } from '../stores/config';
 import AddSectionControl from './AddSectionControl.vue';
 import AddRMSDCCControl from './AddRMSDCCControl.vue';
+import AddMaintenanceTaskControl from './AddMaintenanceTaskControl.vue';
 import SecureFieldEditor from './SecureFieldEditor.vue';
 import api from '../services/api';
 
@@ -585,7 +591,8 @@ const customSectionsAllowed = computed(() => {
 
 // Categories that have their own custom add-section controls (replace generic AddSectionControl)
 const CATEGORIES_WITH_CUSTOM_ADD_CONTROL = [
-  'RMSDCC - Disk Capacity Check'
+  'RMSDCC - Disk Capacity Check',
+  'RMM_Maintenance - Maintenance'
 ];
 
 // Check if current category has a category-specific add control
@@ -618,6 +625,19 @@ async function handleAddRMSDCCEntry({ section, property, value }) {
     }
   } catch (error) {
     showToast('Failed to create RMSDCC entry', 'error');
+  }
+}
+
+async function handleAddMaintenanceTask({ taskName }) {
+  try {
+    const result = await configStore.createMaintenanceTask({ taskName });
+    if (result?.blocked) {
+      showToast('Task creation blocked - database is in read-only mode', 'warning');
+    } else {
+      showToast(`Task "${taskName}" created`, 'info');
+    }
+  } catch (error) {
+    showToast('Failed to create maintenance task', 'error');
   }
 }
 
