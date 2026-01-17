@@ -80,4 +80,15 @@ router.post('/rmuoba/entry', authenticate, requireMFA, async (req, res, next) =>
   roleMiddleware(req, res, next);
 }, configController.createRMUOBAEntry);
 
+// Data Sync routes - admin only
+router.get('/sync/status/:customerId', authenticate, requireMFA, async (req, res, next) => {
+  const roleMiddleware = await requireRole(['MSPB_Employees']);
+  roleMiddleware(req, res, next);
+}, configController.checkDataSyncStatus);
+
+router.post('/sync/request', authenticate, requireMFA, async (req, res, next) => {
+  const roleMiddleware = await requireRole(['MSPB_Employees']);
+  roleMiddleware(req, res, next);
+}, configController.requestDataSync);
+
 module.exports = router;

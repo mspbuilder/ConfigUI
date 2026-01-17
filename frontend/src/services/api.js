@@ -143,4 +143,12 @@ export default {
   createRMUOBAEntry(data) {
     return api.post('/rmuoba/entry', data);
   },
+
+  // Data Sync
+  checkDataSyncStatus(customerId) {
+    return api.get(`/sync/status/${customerId}`);
+  },
+  requestDataSync(customerId) {
+    return api.post('/sync/request', { customerId });
+  },
 };

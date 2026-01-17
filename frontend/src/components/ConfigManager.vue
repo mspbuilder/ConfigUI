@@ -98,6 +98,12 @@
           <input type="checkbox" v-model="globalShowDiffOnly" />
           <span>Show differences only</span>
         </label>
+
+        <RequestDataSyncControl
+          :customer-id="selectedCustomer"
+          @sync-requested="handleSyncRequested"
+          @error="handleSyncError"
+        />
       </div>
     </div>
 
@@ -260,6 +266,7 @@ import AddRMSDCCControl from './AddRMSDCCControl.vue';
 import AddMaintenanceTaskControl from './AddMaintenanceTaskControl.vue';
 import AddRMUOBAControl from './AddRMUOBAControl.vue';
 import SecureFieldEditor from './SecureFieldEditor.vue';
+import RequestDataSyncControl from './RequestDataSyncControl.vue';
 import api from '../services/api';
 
 const router = useRouter();
@@ -673,6 +680,14 @@ async function handleAddRMUOBAEntry({ updateType, property, value }) {
   } catch (error) {
     showToast('Failed to create RMUOBA entry', 'error');
   }
+}
+
+function handleSyncRequested() {
+  showToast('Sync Request Sent', 'info');
+}
+
+function handleSyncError(message) {
+  showToast(message, 'error');
 }
 
 onMounted(async () => {

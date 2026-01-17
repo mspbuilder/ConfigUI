@@ -302,6 +302,29 @@ export const useConfigStore = defineStore('config', {
       }
     },
 
+    async checkDataSyncStatus(customerId) {
+      try {
+        const response = await api.checkDataSyncStatus(customerId);
+        return response.data;
+      } catch (error) {
+        this.error = error.response?.data?.error || 'Failed to check data sync status';
+        throw error;
+      }
+    },
+
+    async requestDataSync(customerId) {
+      try {
+        const response = await api.requestDataSync(customerId);
+        if (response.data.blocked) {
+          return { blocked: true, message: response.data.message };
+        }
+        return { success: true, message: response.data.message };
+      } catch (error) {
+        this.error = error.response?.data?.error || 'Failed to request data sync';
+        throw error;
+      }
+    },
+
     setSelectedCustomerId(customerId) {
       this.selectedCustomerId = customerId;
       this.selectedCategory = null;
