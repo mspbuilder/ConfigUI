@@ -120,6 +120,12 @@
         :custom-sections-allowed="customSectionsAllowed"
         @add-task="handleAddMaintenanceTask"
       />
+      <AddRMUOBAControl
+        :category-name="selectedCategory"
+        :custom-sections-allowed="customSectionsAllowed"
+        @add-section="handleAddRMUOBASection"
+        @add-entry="handleAddRMUOBAEntry"
+      />
       <!-- Generic AddSectionControl - only show if no category-specific control applies -->
       <AddSectionControl
         v-if="!hasCategorySpecificAddControl"
@@ -252,6 +258,7 @@ import { useConfigStore } from '../stores/config';
 import AddSectionControl from './AddSectionControl.vue';
 import AddRMSDCCControl from './AddRMSDCCControl.vue';
 import AddMaintenanceTaskControl from './AddMaintenanceTaskControl.vue';
+import AddRMUOBAControl from './AddRMUOBAControl.vue';
 import SecureFieldEditor from './SecureFieldEditor.vue';
 import api from '../services/api';
 
@@ -592,7 +599,8 @@ const customSectionsAllowed = computed(() => {
 // Categories that have their own custom add-section controls (replace generic AddSectionControl)
 const CATEGORIES_WITH_CUSTOM_ADD_CONTROL = [
   'RMSDCC - Disk Capacity Check',
-  'RMM_Maintenance - Maintenance'
+  'RMM_Maintenance - Maintenance',
+  'RMUOBA - Agent Onboarding'
 ];
 
 // Check if current category has a category-specific add control
@@ -638,6 +646,32 @@ async function handleAddMaintenanceTask({ taskName }) {
     }
   } catch (error) {
     showToast('Failed to create maintenance task', 'error');
+  }
+}
+
+async function handleAddRMUOBASection({ updateType, organization, procedureName, yesNo, site }) {
+  try {
+    const result = await configStore.createRMUOBASection({ updateType, organization, procedureName, yesNo, site });
+    if (result?.blocked) {
+      showToast('Section creation blocked - database is in read-only mode', 'warning');
+    } else {
+      showToast(`RMUOBA section "${procedureName}" created`, 'info');
+    }
+  } catch (error) {
+    showToast('Failed to create RMUOBA section', 'error');
+  }
+}
+
+async function handleAddRMUOBAEntry({ updateType, property, value }) {
+  try {
+    const result = await configStore.createRMUOBAEntry({ updateType, property, value });
+    if (result?.blocked) {
+      showToast('Entry creation blocked - database is in read-only mode', 'warning');
+    } else {
+      showToast(`RMUOBA entry "${property}" created`, 'info');
+    }
+  } catch (error) {
+    showToast('Failed to create RMUOBA entry', 'error');
   }
 }
 

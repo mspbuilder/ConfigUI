@@ -576,6 +576,100 @@ async function createRMSDCCEntry(req, res) {
   }
 }
 
+// Create RMUOBA Section (Org-based types)
+// Maps to: ADD_NEW_RMUOBA_SECTION
+// Params: UpdateType, CustomerID, Organization, ProcedureName, YesNo, Site, UserName
+async function createRMUOBASection(req, res) {
+  const reqLog = req.log || log;
+  try {
+    const {
+      updateType,
+      customerId,
+      organization,
+      procedureName,
+      yesNo,
+      site
+    } = req.body;
+
+    if (!updateType || !procedureName) {
+      return res.status(400).json({ error: 'updateType and procedureName are required' });
+    }
+
+    const sqlQuery = `EXEC ADD_NEW_RMUOBA_SECTION @p1, @p2, @p3, @p4, @p5, @p6, @p7`;
+    const params = {
+      p1: updateType,
+      p2: customerId || '',
+      p3: organization || '',
+      p4: procedureName,
+      p5: yesNo || 'Y',
+      p6: site || '',
+      p7: req.user.username
+    };
+
+    if (READ_ONLY_MODE) {
+      const sqlEcho = logBlockedWrite(reqLog, 'CREATE_RMUOBA_SECTION', sqlQuery, params);
+      const response = { success: true, blocked: true, message: 'Write blocked (read-only mode)' };
+      if (isAdmin(req)) {
+        response.sqlEcho = sqlEcho;
+      }
+      return res.json(response);
+    }
+
+    await queryConfig(sqlQuery, params, getQueryOptions(req));
+
+    reqLog.info('RMUOBA section created', { updateType, procedureName, organization, customerId, username: req.user.username });
+    res.json({ success: true });
+  } catch (error) {
+    reqLog.error('Create RMUOBA section error', { err: error.message });
+    res.status(500).json({ error: 'Failed to create RMUOBA section' });
+  }
+}
+
+// Create RMUOBA Entry (ALL-based types)
+// Maps to: ADD_NEW_RMUOBA_ENTRY
+// Params: UpdateType, CustomerID, Property, Value, UserName
+async function createRMUOBAEntry(req, res) {
+  const reqLog = req.log || log;
+  try {
+    const {
+      updateType,
+      customerId,
+      property,
+      value
+    } = req.body;
+
+    if (!updateType || !property) {
+      return res.status(400).json({ error: 'updateType and property are required' });
+    }
+
+    const sqlQuery = `EXEC ADD_NEW_RMUOBA_ENTRY @p1, @p2, @p3, @p4, @p5`;
+    const params = {
+      p1: updateType,
+      p2: customerId || '',
+      p3: property,
+      p4: value || 'Y',
+      p5: req.user.username
+    };
+
+    if (READ_ONLY_MODE) {
+      const sqlEcho = logBlockedWrite(reqLog, 'CREATE_RMUOBA_ENTRY', sqlQuery, params);
+      const response = { success: true, blocked: true, message: 'Write blocked (read-only mode)' };
+      if (isAdmin(req)) {
+        response.sqlEcho = sqlEcho;
+      }
+      return res.json(response);
+    }
+
+    await queryConfig(sqlQuery, params, getQueryOptions(req));
+
+    reqLog.info('RMUOBA entry created', { updateType, property, value, customerId, username: req.user.username });
+    res.json({ success: true });
+  } catch (error) {
+    reqLog.error('Create RMUOBA entry error', { err: error.message });
+    res.status(500).json({ error: 'Failed to create RMUOBA entry' });
+  }
+}
+
 module.exports = {
   getCustomerConfigs,
   getDefaultConfigs,
@@ -590,5 +684,7 @@ module.exports = {
   createMaintenanceTask,
   createSection,
   getDataTypeValues,
-  createRMSDCCEntry
+  createRMSDCCEntry,
+  createRMUOBASection,
+  createRMUOBAEntry
 };

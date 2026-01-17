@@ -133,4 +133,14 @@ export default {
   createMaintenanceTask(data) {
     return api.post('/configs/tasks', data);
   },
+
+  // Create RMUOBA Section (Org-based types)
+  createRMUOBASection(data) {
+    return api.post('/rmuoba/section', data);
+  },
+
+  // Create RMUOBA Entry (ALL-based types)
+  createRMUOBAEntry(data) {
+    return api.post('/rmuoba/entry', data);
+  },
 };

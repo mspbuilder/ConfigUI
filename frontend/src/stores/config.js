@@ -262,6 +262,46 @@ export const useConfigStore = defineStore('config', {
       }
     },
 
+    async createRMUOBASection({ updateType, organization, procedureName, yesNo, site }) {
+      try {
+        const response = await api.createRMUOBASection({
+          updateType,
+          customerId: this.selectedCustomerId,
+          organization,
+          procedureName,
+          yesNo,
+          site
+        });
+        if (response.data.blocked) {
+          return { blocked: true, message: response.data.message };
+        }
+        await this.loadConfigs();
+        return { success: true };
+      } catch (error) {
+        this.error = error.response?.data?.error || 'Failed to create RMUOBA section';
+        throw error;
+      }
+    },
+
+    async createRMUOBAEntry({ updateType, property, value }) {
+      try {
+        const response = await api.createRMUOBAEntry({
+          updateType,
+          customerId: this.selectedCustomerId,
+          property,
+          value
+        });
+        if (response.data.blocked) {
+          return { blocked: true, message: response.data.message };
+        }
+        await this.loadConfigs();
+        return { success: true };
+      } catch (error) {
+        this.error = error.response?.data?.error || 'Failed to create RMUOBA entry';
+        throw error;
+      }
+    },
+
     setSelectedCustomerId(customerId) {
       this.selectedCustomerId = customerId;
       this.selectedCategory = null;

@@ -68,4 +68,16 @@ router.post('/rmsdcc', authenticate, requireMFA, async (req, res, next) => {
   roleMiddleware(req, res, next);
 }, configController.createRMSDCCEntry);
 
+// Create RMUOBA Section (Org-based types) - requires admin role
+router.post('/rmuoba/section', authenticate, requireMFA, async (req, res, next) => {
+  const roleMiddleware = await requireRole(['Customer Config Admin', 'MSPB_Employees']);
+  roleMiddleware(req, res, next);
+}, configController.createRMUOBASection);
+
+// Create RMUOBA Entry (ALL-based types) - requires admin role
+router.post('/rmuoba/entry', authenticate, requireMFA, async (req, res, next) => {
+  const roleMiddleware = await requireRole(['Customer Config Admin', 'MSPB_Employees']);
+  roleMiddleware(req, res, next);
+}, configController.createRMUOBAEntry);
+
 module.exports = router;
