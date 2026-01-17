@@ -1,7 +1,7 @@
 <template>
   <div v-if="visible" class="add-rmsdcc-control">
     <button @click="toggleForm" class="add-rmsdcc-btn">
-      + Add Disk Capacity Entry
+      + RMSDCC-Disk Capacity Check: New Section/Property/Value
     </button>
 
     <div v-if="showForm" class="add-rmsdcc-form">
