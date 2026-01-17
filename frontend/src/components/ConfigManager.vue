@@ -310,7 +310,8 @@ const canEdit = computed(() => {
 
 // Get the effective customer ID (admin-selected or user's own)
 const effectiveCustomerId = computed(() => {
-  if (isEffectiveAdmin.value && selectedCustomer.value) {
+  // Admins always use selectedCustomer (regardless of admin view toggle)
+  if (authStore.isAdmin && selectedCustomer.value) {
     return selectedCustomer.value;
   }
   return authStore.user?.customerId;
