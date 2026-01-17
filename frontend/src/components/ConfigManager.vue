@@ -15,7 +15,7 @@
     <div class="filters">
       <div class="filter-row">
         <select
-          v-if="isEffectiveAdmin"
+          v-if="authStore.isAdmin"
           v-model="selectedCustomer"
           @change="handleCustomerChange"
           class="customer-select"
@@ -604,22 +604,10 @@ onMounted(async () => {
 });
 
 // Watch for admin view toggle changes
-watch(adminViewEnabled, async (enabled) => {
-  if (!authStore.isAdmin) return;
-
-  // Reset selections when toggling admin view
-  selectedCustomer.value = '';
-  selectedCategory.value = '';
-  selectedOrganization.value = '';
-  selectedSite.value = '';
-  selectedAgent.value = '';
-  configStore.configs = [];
-
-  if (!enabled && authStore.user?.customerId) {
-    // Switching to standard user view - use user's own customer
-    configStore.setSelectedCustomerId(authStore.user.customerId);
-    await configStore.loadCategories(authStore.user.customerId);
-  }
+// Note: Customer select remains enabled - admins can still browse customer configs
+// while viewing the UI as a standard user would see it
+watch(adminViewEnabled, async () => {
+  // No reset needed - just toggles UI behavior for parent values, etc.
 });
 
 async function handleCustomerChange() {
