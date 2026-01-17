@@ -62,4 +62,10 @@ router.get('/customers', authenticate, requireMFA, async (req, res, next) => {
 // Get datatype values for dropdown
 router.get('/datatypes/:dataTypeId/values', authenticate, requireMFA, fetchUserRoles, configController.getDataTypeValues);
 
+// Create RMSDCC (Disk Capacity Check) entry - requires admin role
+router.post('/rmsdcc', authenticate, requireMFA, async (req, res, next) => {
+  const roleMiddleware = await requireRole(['Customer Config Admin', 'MSPB_Employees']);
+  roleMiddleware(req, res, next);
+}, configController.createRMSDCCEntry);
+
 module.exports = router;

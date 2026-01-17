@@ -517,6 +517,65 @@ async function getDataTypeValues(req, res) {
   }
 }
 
+// Create RMSDCC (Disk Capacity Check) entry
+// Maps to: ADD_NEW_RMSDCC_ENTRY
+// Params: @CUSTOMERCODE, @ORGANIZATIONID, @SITE, @AGENT, @SECTION, @PROPERTY, @VALUE, @CurrentUserName
+async function createRMSDCCEntry(req, res) {
+  const reqLog = req.log || log;
+  try {
+    const {
+      customerId,
+      organizationId,
+      site,
+      agent,
+      section,
+      property,
+      value
+    } = req.body;
+
+    if (!section || !property) {
+      return res.status(400).json({ error: 'section and property are required' });
+    }
+
+    const sqlQuery = `EXEC ADD_NEW_RMSDCC_ENTRY
+      @CUSTOMERCODE = @p1,
+      @ORGANIZATIONID = @p2,
+      @SITE = @p3,
+      @AGENT = @p4,
+      @SECTION = @p5,
+      @PROPERTY = @p6,
+      @VALUE = @p7,
+      @CurrentUserName = @p8`;
+    const params = {
+      p1: customerId || '',
+      p2: organizationId || '',
+      p3: site || '',
+      p4: agent || '',
+      p5: section,
+      p6: property,
+      p7: value || '',
+      p8: req.user.username
+    };
+
+    if (READ_ONLY_MODE) {
+      const sqlEcho = logBlockedWrite(reqLog, 'CREATE_RMSDCC_ENTRY', sqlQuery, params);
+      const response = { success: true, blocked: true, message: 'Write blocked (read-only mode)' };
+      if (isAdmin(req)) {
+        response.sqlEcho = sqlEcho;
+      }
+      return res.json(response);
+    }
+
+    await queryConfig(sqlQuery, params, getQueryOptions(req));
+
+    reqLog.info('RMSDCC entry created', { section, property, value, customerId, username: req.user.username });
+    res.json({ success: true });
+  } catch (error) {
+    reqLog.error('Create RMSDCC entry error', { err: error.message });
+    res.status(500).json({ error: 'Failed to create RMSDCC entry' });
+  }
+}
+
 module.exports = {
   getCustomerConfigs,
   getDefaultConfigs,
@@ -530,5 +589,6 @@ module.exports = {
   getCustomers,
   createMaintenanceTask,
   createSection,
-  getDataTypeValues
+  getDataTypeValues,
+  createRMSDCCEntry
 };

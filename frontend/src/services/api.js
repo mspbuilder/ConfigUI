@@ -123,4 +123,9 @@ export default {
   getDataTypeValues(dataTypeId) {
     return api.get(`/datatypes/${dataTypeId}/values`);
   },
+
+  // Create RMSDCC (Disk Capacity Check) entry
+  createRMSDCCEntry(data) {
+    return api.post('/rmsdcc', data);
+  },
 };

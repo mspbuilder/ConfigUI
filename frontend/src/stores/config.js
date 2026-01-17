@@ -220,6 +220,28 @@ export const useConfigStore = defineStore('config', {
       }
     },
 
+    async createRMSDCCEntry({ section, property, value }) {
+      try {
+        const response = await api.createRMSDCCEntry({
+          customerId: this.selectedCustomerId,
+          organizationId: this.selectedOrganization,
+          site: this.selectedSite,
+          agent: this.selectedAgent,
+          section,
+          property,
+          value
+        });
+        if (response.data.blocked) {
+          return { blocked: true, message: response.data.message };
+        }
+        await this.loadConfigs();
+        return { success: true };
+      } catch (error) {
+        this.error = error.response?.data?.error || 'Failed to create RMSDCC entry';
+        throw error;
+      }
+    },
+
     setSelectedCustomerId(customerId) {
       this.selectedCustomerId = customerId;
       this.selectedCategory = null;

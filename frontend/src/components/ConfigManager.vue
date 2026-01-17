@@ -113,6 +113,11 @@
         :custom-sections-allowed="customSectionsAllowed"
         @add-section="handleAddSection"
       />
+      <AddRMSDCCControl
+        :category-name="selectedCategory"
+        :custom-sections-allowed="customSectionsAllowed"
+        @add-entry="handleAddRMSDCCEntry"
+      />
 
       <div
         v-for="group in configStore.groupedConfigs"
@@ -237,6 +242,7 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useConfigStore } from '../stores/config';
 import AddSectionControl from './AddSectionControl.vue';
+import AddRMSDCCControl from './AddRMSDCCControl.vue';
 import SecureFieldEditor from './SecureFieldEditor.vue';
 import api from '../services/api';
 
@@ -586,6 +592,19 @@ async function handleAddSection(sectionName) {
     }
   } catch (error) {
     showToast('Failed to create section', 'error');
+  }
+}
+
+async function handleAddRMSDCCEntry({ section, property, value }) {
+  try {
+    const result = await configStore.createRMSDCCEntry({ section, property, value });
+    if (result?.blocked) {
+      showToast('Entry creation blocked - database is in read-only mode', 'warning');
+    } else {
+      showToast(`RMSDCC entry "${section}/${property}" created`, 'info');
+    }
+  } catch (error) {
+    showToast('Failed to create RMSDCC entry', 'error');
   }
 }
 
