@@ -3,6 +3,7 @@ const { authenticate, requireMFA, fetchUserRoles, requireRole } = require('../mi
 const authController = require('../controllers/authController');
 const configController = require('../controllers/configController');
 const fileSpecController = require('../controllers/fileSpecController');
+const sectionSpecController = require('../controllers/sectionSpecController');
 
 const router = express.Router();
 
@@ -94,5 +95,16 @@ router.put('/admin/file-specs/:fileSpecId', authenticate, requireMFA, async (req
   const roleMiddleware = await requireRole(['MSPB_Employees']);
   roleMiddleware(req, res, next);
 }, fileSpecController.updateFileSpec);
+
+// Admin routes - Section Spec management (MSPB_Employees only)
+router.get('/admin/section-specs', authenticate, requireMFA, async (req, res, next) => {
+  const roleMiddleware = await requireRole(['MSPB_Employees']);
+  roleMiddleware(req, res, next);
+}, sectionSpecController.getSectionSpecs);
+
+router.put('/admin/section-specs/:sectionSpecId', authenticate, requireMFA, async (req, res, next) => {
+  const roleMiddleware = await requireRole(['MSPB_Employees']);
+  roleMiddleware(req, res, next);
+}, sectionSpecController.updateSectionSpec);
 
 module.exports = router;

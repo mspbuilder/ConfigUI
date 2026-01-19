@@ -3,6 +3,7 @@ import { useAuthStore } from '../stores/auth';
 import MFA from '../components/MFA.vue';
 import ConfigManager from '../components/ConfigManager.vue';
 import FileSpecAdmin from '../components/FileSpecAdmin.vue';
+import SectionSpecAdmin from '../components/SectionSpecAdmin.vue';
 
 const routes = [
   {
@@ -21,6 +22,12 @@ const routes = [
     path: '/admin/file-specs',
     name: 'FileSpecAdmin',
     component: FileSpecAdmin,
+    meta: { requiresAuth: true, requiresMFA: true },
+  },
+  {
+    path: '/admin/section-specs',
+    name: 'SectionSpecAdmin',
+    component: SectionSpecAdmin,
     meta: { requiresAuth: true, requiresMFA: true },
   },
 ];

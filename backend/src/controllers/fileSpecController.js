@@ -48,7 +48,7 @@ async function getFileSpecs(req, res) {
   try {
     const result = await queryConfig(
       `SELECT file_spec_id, f_name, file_desc, sort_order, custom_sections_allowed,
-              last_reviewed, section_sort_used_by_client, legacy_category_name
+              last_reviewed, section_sort_used_by_client, legacy_category_name, updated_by
        FROM Config.File_Spec
        ORDER BY sort_order, f_name`,
       {},
@@ -83,15 +83,17 @@ async function updateFileSpec(req, res) {
            sort_order = @p2,
            custom_sections_allowed = @p3,
            section_sort_used_by_client = @p4,
-           last_reviewed = GETDATE()
-       WHERE file_spec_id = @p5`;
+           last_reviewed = GETDATE(),
+           updated_by = @p5
+       WHERE file_spec_id = @p6`;
 
     const params = {
       p1: { type: sql.NVarChar(150), value: file_desc || null },
       p2: { type: sql.Int, value: sort_order != null ? parseInt(sort_order) : null },
       p3: { type: sql.Bit, value: custom_sections_allowed != null ? (custom_sections_allowed ? 1 : 0) : null },
       p4: { type: sql.Bit, value: section_sort_used_by_client != null ? (section_sort_used_by_client ? 1 : 0) : null },
-      p5: { type: sql.Int, value: parseInt(fileSpecId) }
+      p5: { type: sql.NVarChar(sql.MAX), value: req.user.username },
+      p6: { type: sql.Int, value: parseInt(fileSpecId) }
     };
 
     if (READ_ONLY_MODE) {

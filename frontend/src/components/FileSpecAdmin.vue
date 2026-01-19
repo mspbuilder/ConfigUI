@@ -3,6 +3,7 @@
     <header>
       <h1>Admin: File Specifications</h1>
       <div class="user-info">
+        <router-link to="/admin/section-specs" class="nav-link">Section Specs</router-link>
         <router-link to="/" class="back-link">Back to Config Manager</router-link>
         <span>{{ authStore.user?.username }}</span>
         <button @click="handleLogout" class="logout-btn">Logout</button>
@@ -37,14 +38,15 @@
         <table class="file-spec-table">
           <thead>
             <tr>
-              <th class="col-id">ID</th>
-              <th class="col-name">File Name</th>
-              <th class="col-desc">Description</th>
-              <th class="col-sort">Sort Order</th>
-              <th class="col-bool">Custom Sections</th>
-              <th class="col-bool">Section Sort</th>
-              <th class="col-legacy">Legacy Category</th>
-              <th class="col-date">Last Reviewed</th>
+              <th class="col-id">file_spec_id</th>
+              <th class="col-name">f_name</th>
+              <th class="col-desc">file_desc</th>
+              <th class="col-sort">sort_order</th>
+              <th class="col-bool">custom_sections_allowed</th>
+              <th class="col-bool">section_sort_used_by_client</th>
+              <th class="col-legacy">legacy_category_name</th>
+              <th class="col-date">last_reviewed</th>
+              <th class="col-user">updated_by</th>
               <th class="col-actions">Actions</th>
             </tr>
           </thead>
@@ -85,6 +87,7 @@
               </td>
               <td class="col-legacy">{{ spec.legacy_category_name }}</td>
               <td class="col-date">{{ formatDate(spec.last_reviewed) }}</td>
+              <td class="col-user">{{ spec.updated_by || '-' }}</td>
               <td class="col-actions">
                 <button
                   v-if="isDirty(spec.file_spec_id)"
@@ -241,7 +244,8 @@ header h1 {
   gap: 1rem;
 }
 
-.back-link {
+.back-link,
+.nav-link {
   color: white;
   text-decoration: none;
   padding: 0.5rem 1rem;
@@ -250,7 +254,8 @@ header h1 {
   border-radius: 4px;
 }
 
-.back-link:hover {
+.back-link:hover,
+.nav-link:hover {
   background: rgba(255, 255, 255, 0.25);
 }
 
@@ -378,6 +383,12 @@ header h1 {
 
 .col-date {
   width: 150px;
+  color: #666;
+  font-size: 0.85em;
+}
+
+.col-user {
+  width: 120px;
   color: #666;
   font-size: 0.85em;
 }

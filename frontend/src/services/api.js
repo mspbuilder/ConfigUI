@@ -156,4 +156,12 @@ export default {
   updateFileSpec(fileSpecId, data) {
     return api.put(`/admin/file-specs/${fileSpecId}`, data);
   },
+
+  // Admin - Section Spec management
+  getSectionSpecs(fileSpecId) {
+    return api.get('/admin/section-specs', { params: { fileSpecId } });
+  },
+  updateSectionSpec(sectionSpecId, data) {
+    return api.put(`/admin/section-specs/${sectionSpecId}`, data);
+  },
 };
