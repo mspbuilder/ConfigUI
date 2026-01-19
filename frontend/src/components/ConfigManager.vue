@@ -3,6 +3,7 @@
     <header>
       <h1>Configuration Manager</h1>
       <div class="user-info">
+        <router-link v-if="authStore.isAdmin" to="/admin/file-specs" class="admin-link">Admin</router-link>
         <label v-if="authStore.isAdmin" class="admin-view-toggle">
           <input type="checkbox" v-model="adminViewEnabled" />
           <span>Admin View</span>
@@ -942,6 +943,20 @@ header h1 {
   border-radius: 4px;
   cursor: pointer;
   font-weight: bold;
+}
+
+.admin-link {
+  color: white;
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.admin-link:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .admin-view-toggle {

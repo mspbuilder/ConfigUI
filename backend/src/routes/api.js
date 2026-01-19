@@ -2,6 +2,7 @@ const express = require('express');
 const { authenticate, requireMFA, fetchUserRoles, requireRole } = require('../middleware/auth');
 const authController = require('../controllers/authController');
 const configController = require('../controllers/configController');
+const fileSpecController = require('../controllers/fileSpecController');
 
 const router = express.Router();
 
@@ -80,15 +81,18 @@ router.post('/rmuoba/entry', authenticate, requireMFA, async (req, res, next) =>
   roleMiddleware(req, res, next);
 }, configController.createRMUOBAEntry);
 
-// Data Sync routes - admin only
-router.get('/sync/status/:customerId', authenticate, requireMFA, async (req, res, next) => {
-  const roleMiddleware = await requireRole(['MSPB_Employees']);
-  roleMiddleware(req, res, next);
-}, configController.checkDataSyncStatus);
+// Data Sync route - available to all authenticated users
+router.post('/sync/request', authenticate, requireMFA, fetchUserRoles, configController.requestDataSync);
 
-router.post('/sync/request', authenticate, requireMFA, async (req, res, next) => {
+// Admin routes - File Spec management (MSPB_Employees only)
+router.get('/admin/file-specs', authenticate, requireMFA, async (req, res, next) => {
   const roleMiddleware = await requireRole(['MSPB_Employees']);
   roleMiddleware(req, res, next);
-}, configController.requestDataSync);
+}, fileSpecController.getFileSpecs);
+
+router.put('/admin/file-specs/:fileSpecId', authenticate, requireMFA, async (req, res, next) => {
+  const roleMiddleware = await requireRole(['MSPB_Employees']);
+  roleMiddleware(req, res, next);
+}, fileSpecController.updateFileSpec);
 
 module.exports = router;

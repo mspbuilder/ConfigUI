@@ -145,10 +145,15 @@ export default {
   },
 
   // Data Sync
-  checkDataSyncStatus(customerId) {
-    return api.get(`/sync/status/${customerId}`);
-  },
   requestDataSync(customerId) {
     return api.post('/sync/request', { customerId });
+  },
+
+  // Admin - File Spec management
+  getFileSpecs() {
+    return api.get('/admin/file-specs');
+  },
+  updateFileSpec(fileSpecId, data) {
+    return api.put(`/admin/file-specs/${fileSpecId}`, data);
   },
 };

@@ -670,47 +670,6 @@ async function createRMUOBAEntry(req, res) {
   }
 }
 
-// Check if data sync can be requested (only once per 24 hours)
-// Checks cfg_syncs table for last_request timestamp
-async function checkDataSyncStatus(req, res) {
-  const reqLog = req.log || log;
-  try {
-    const { customerId } = req.params;
-
-    if (!customerId) {
-      return res.status(400).json({ error: 'customerId is required' });
-    }
-
-    const sqlQuery = `SELECT cid, last_request FROM cfg_syncs WHERE cid = @p1`;
-    const params = { p1: customerId };
-
-    const result = await queryConfig(sqlQuery, params, getQueryOptions(req));
-
-    if (result.recordset && result.recordset.length > 0) {
-      const lastRequest = new Date(result.recordset[0].last_request);
-      const now = new Date();
-      const hoursSinceLastRequest = (now - lastRequest) / (1000 * 60 * 60);
-
-      res.json({
-        success: true,
-        canRequest: hoursSinceLastRequest > 24,
-        lastRequest: lastRequest.toISOString(),
-        hoursSinceLastRequest: Math.round(hoursSinceLastRequest * 10) / 10
-      });
-    } else {
-      // No record means they can request
-      res.json({
-        success: true,
-        canRequest: true,
-        lastRequest: null
-      });
-    }
-  } catch (error) {
-    reqLog.error('Check data sync status error', { err: error.message, customerId: req.params.customerId });
-    res.status(500).json({ error: 'Failed to check data sync status' });
-  }
-}
-
 // Request data sync
 // Maps to: ADD_NEW_DATA_SYNC_JOB
 async function requestDataSync(req, res) {
@@ -761,6 +720,5 @@ module.exports = {
   createRMSDCCEntry,
   createRMUOBASection,
   createRMUOBAEntry,
-  checkDataSyncStatus,
   requestDataSync
 };

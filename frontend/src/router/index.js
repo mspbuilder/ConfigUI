@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import MFA from '../components/MFA.vue';
 import ConfigManager from '../components/ConfigManager.vue';
+import FileSpecAdmin from '../components/FileSpecAdmin.vue';
 
 const routes = [
   {
@@ -14,6 +15,12 @@ const routes = [
     path: '/',
     name: 'ConfigManager',
     component: ConfigManager,
+    meta: { requiresAuth: true, requiresMFA: true },
+  },
+  {
+    path: '/admin/file-specs',
+    name: 'FileSpecAdmin',
+    component: FileSpecAdmin,
     meta: { requiresAuth: true, requiresMFA: true },
   },
 ];

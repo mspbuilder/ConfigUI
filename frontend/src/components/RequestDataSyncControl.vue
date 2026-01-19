@@ -2,22 +2,17 @@
   <div v-if="visible" class="request-data-sync-control">
     <button
       @click="handleRequestSync"
-      :disabled="!canRequest || loading"
+      :disabled="loading"
       class="request-sync-btn"
-      title="One Per Day"
     >
       {{ loading ? 'Requesting...' : 'Request Data Sync' }}
     </button>
-    <span v-if="!canRequest && !loading" class="sync-status">
-      (Requested within last 24 hours)
-    </span>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed } from 'vue';
 import { useConfigStore } from '../stores/config';
-import { useAuthStore } from '../stores/auth';
 
 const props = defineProps({
   customerId: {
@@ -29,43 +24,16 @@ const props = defineProps({
 const emit = defineEmits(['sync-requested', 'error']);
 
 const configStore = useConfigStore();
-const authStore = useAuthStore();
 
 const loading = ref(false);
-const canRequest = ref(false);
-const checked = ref(false);
 
-// Only show for admin users when a customer is selected
+// Show when a customer is selected (for all users)
 const visible = computed(() => {
-  return authStore.isAdmin && props.customerId;
+  return !!props.customerId;
 });
 
-// Check if sync can be requested when customerId changes
-watch(() => props.customerId, async (newCustomerId) => {
-  if (newCustomerId) {
-    await checkSyncStatus();
-  } else {
-    canRequest.value = false;
-    checked.value = false;
-  }
-}, { immediate: true });
-
-async function checkSyncStatus() {
-  if (!props.customerId) return;
-
-  try {
-    const result = await configStore.checkDataSyncStatus(props.customerId);
-    canRequest.value = result?.canRequest ?? true;
-    checked.value = true;
-  } catch (error) {
-    // On error, allow the request (backend will validate)
-    canRequest.value = true;
-    checked.value = true;
-  }
-}
-
 async function handleRequestSync() {
-  if (!canRequest.value || loading.value) return;
+  if (loading.value) return;
 
   loading.value = true;
   try {
@@ -73,7 +41,6 @@ async function handleRequestSync() {
     if (result?.blocked) {
       emit('error', 'Sync request blocked - database is in read-only mode');
     } else {
-      canRequest.value = false;
       emit('sync-requested');
     }
   } catch (error) {
