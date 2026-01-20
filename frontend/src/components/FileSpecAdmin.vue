@@ -32,13 +32,12 @@
       <div v-else class="file-spec-table-container">
         <p class="table-description">
           Manage configuration file specifications. Editable fields are highlighted.
-          Changes to editable fields will update <code>last_reviewed</code> automatically.
+          Changes auto-save on blur.
         </p>
 
         <table class="file-spec-table">
           <thead>
             <tr>
-              <th class="col-id">file_spec_id</th>
               <th class="col-name">f_name</th>
               <th class="col-desc">file_desc</th>
               <th class="col-sort">sort_order</th>
@@ -47,18 +46,16 @@
               <th class="col-legacy">legacy_category_name</th>
               <th class="col-date">last_reviewed</th>
               <th class="col-user">updated_by</th>
-              <th class="col-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="spec in fileSpecStore.sortedFileSpecs" :key="spec.file_spec_id">
-              <td class="col-id">{{ spec.file_spec_id }}</td>
+            <tr v-for="spec in fileSpecStore.sortedFileSpecs" :key="spec.file_spec_id" :class="{ saving: saving[spec.file_spec_id] }">
               <td class="col-name">{{ spec.f_name }}</td>
               <td class="col-desc editable">
                 <input
                   type="text"
                   v-model="editState[spec.file_spec_id].file_desc"
-                  @change="markDirty(spec.file_spec_id)"
+                  @blur="handleBlur(spec.file_spec_id)"
                   maxlength="150"
                   placeholder="Enter description..."
                 />
@@ -67,7 +64,7 @@
                 <input
                   type="number"
                   v-model.number="editState[spec.file_spec_id].sort_order"
-                  @change="markDirty(spec.file_spec_id)"
+                  @blur="handleBlur(spec.file_spec_id)"
                   min="0"
                 />
               </td>
@@ -75,38 +72,19 @@
                 <input
                   type="checkbox"
                   v-model="editState[spec.file_spec_id].custom_sections_allowed"
-                  @change="markDirty(spec.file_spec_id)"
+                  @change="handleCheckboxChange(spec.file_spec_id)"
                 />
               </td>
               <td class="col-bool editable">
                 <input
                   type="checkbox"
                   v-model="editState[spec.file_spec_id].section_sort_used_by_client"
-                  @change="markDirty(spec.file_spec_id)"
+                  @change="handleCheckboxChange(spec.file_spec_id)"
                 />
               </td>
               <td class="col-legacy">{{ spec.legacy_category_name }}</td>
               <td class="col-date">{{ formatDate(spec.last_reviewed) }}</td>
               <td class="col-user">{{ spec.updated_by || '-' }}</td>
-              <td class="col-actions">
-                <button
-                  v-if="isDirty(spec.file_spec_id)"
-                  @click="saveSpec(spec.file_spec_id)"
-                  class="save-btn"
-                  :disabled="saving[spec.file_spec_id]"
-                >
-                  {{ saving[spec.file_spec_id] ? 'Saving...' : 'Save' }}
-                </button>
-                <button
-                  v-if="isDirty(spec.file_spec_id)"
-                  @click="resetSpec(spec.file_spec_id)"
-                  class="cancel-btn"
-                  :disabled="saving[spec.file_spec_id]"
-                >
-                  Cancel
-                </button>
-                <span v-if="!isDirty(spec.file_spec_id)" class="no-changes">-</span>
-              </td>
             </tr>
           </tbody>
         </table>
@@ -116,7 +94,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue';
+import { reactive, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useFileSpecStore } from '../stores/fileSpec';
@@ -156,10 +134,6 @@ function initEditState() {
   });
 }
 
-function markDirty(id) {
-  // Just triggers reactivity - isDirty will re-compute
-}
-
 function isDirty(id) {
   const edit = editState[id];
   const orig = originalState[id];
@@ -171,14 +145,9 @@ function isDirty(id) {
          edit.section_sort_used_by_client !== orig.section_sort_used_by_client;
 }
 
-function resetSpec(id) {
-  const orig = originalState[id];
-  if (orig) {
-    editState[id] = { ...orig };
-  }
-}
-
 async function saveSpec(id) {
+  if (!isDirty(id)) return;
+
   saving[id] = true;
   try {
     const data = editState[id];
@@ -187,15 +156,22 @@ async function saveSpec(id) {
     if (result?.blocked) {
       showToast('Update blocked - database is in read-only mode', 'warning');
     } else {
-      showToast('File specification updated', 'success');
-      // Update original state to match new saved values
+      showToast('Saved', 'success');
       originalState[id] = { ...editState[id] };
     }
   } catch (error) {
-    showToast('Failed to update file specification', 'error');
+    showToast('Failed to save', 'error');
   } finally {
     saving[id] = false;
   }
+}
+
+function handleBlur(id) {
+  saveSpec(id);
+}
+
+function handleCheckboxChange(id) {
+  saveSpec(id);
 }
 
 async function handleLogout() {
@@ -203,7 +179,6 @@ async function handleLogout() {
   router.push('/login');
 }
 
-// Watch for fileSpecs changes to reinitialize edit state
 watch(() => fileSpecStore.fileSpecs, () => {
   initEditState();
 }, { deep: true });
@@ -312,13 +287,6 @@ header h1 {
   color: #666;
 }
 
-.table-description code {
-  background: #e8e8e8;
-  padding: 0.1rem 0.3rem;
-  border-radius: 3px;
-  font-size: 0.9em;
-}
-
 .file-spec-table-container {
   background: white;
   border-radius: 8px;
@@ -351,9 +319,8 @@ header h1 {
   background: #fafafa;
 }
 
-.col-id {
-  width: 50px;
-  text-align: center;
+.file-spec-table tbody tr.saving {
+  opacity: 0.6;
 }
 
 .col-name {
@@ -393,11 +360,6 @@ header h1 {
   font-size: 0.85em;
 }
 
-.col-actions {
-  width: 140px;
-  text-align: center;
-}
-
 /* Editable cells styling */
 .editable {
   background: #fffef0;
@@ -434,47 +396,6 @@ header h1 {
   width: 18px;
   height: 18px;
   cursor: pointer;
-}
-
-.save-btn,
-.cancel-btn {
-  padding: 0.3rem 0.6rem;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  margin: 0 0.2rem;
-}
-
-.save-btn {
-  background: #28a745;
-  color: white;
-}
-
-.save-btn:hover:not(:disabled) {
-  background: #218838;
-}
-
-.save-btn:disabled {
-  background: #94d3a2;
-  cursor: not-allowed;
-}
-
-.cancel-btn {
-  background: #6c757d;
-  color: white;
-}
-
-.cancel-btn:hover:not(:disabled) {
-  background: #5a6268;
-}
-
-.cancel-btn:disabled {
-  cursor: not-allowed;
-}
-
-.no-changes {
-  color: #ccc;
 }
 
 /* Toast notification */

@@ -55,13 +55,12 @@
         <div v-else class="section-spec-table-container">
           <p class="table-description">
             Manage section specifications for <strong>{{ currentFileDesc }}</strong>.
-            Editable fields are highlighted.
+            Editable fields are highlighted. Changes auto-save on blur.
           </p>
 
           <table class="section-spec-table">
             <thead>
               <tr>
-                <th class="col-id">section_spec_id</th>
                 <th class="col-name">section_name</th>
                 <th class="col-desc">section_desc</th>
                 <th class="col-sort">sort_order</th>
@@ -70,17 +69,15 @@
                 <th class="col-bool">presense_enforced</th>
                 <th class="col-date">last_reviewed</th>
                 <th class="col-user">updated_by</th>
-                <th class="col-actions">Actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="spec in sectionSpecStore.sortedSectionSpecs" :key="spec.section_spec_id">
-                <td class="col-id">{{ spec.section_spec_id }}</td>
+              <tr v-for="spec in sectionSpecStore.sortedSectionSpecs" :key="spec.section_spec_id" :class="{ saving: saving[spec.section_spec_id] }">
                 <td class="col-name editable">
                   <input
                     type="text"
                     v-model="editState[spec.section_spec_id].section_name"
-                    @change="markDirty(spec.section_spec_id)"
+                    @blur="handleBlur(spec.section_spec_id)"
                     maxlength="150"
                   />
                 </td>
@@ -88,7 +85,7 @@
                   <input
                     type="text"
                     v-model="editState[spec.section_spec_id].section_desc"
-                    @change="markDirty(spec.section_spec_id)"
+                    @blur="handleBlur(spec.section_spec_id)"
                     maxlength="250"
                     placeholder="Enter description..."
                   />
@@ -97,7 +94,7 @@
                   <input
                     type="number"
                     v-model.number="editState[spec.section_spec_id].sort_order"
-                    @change="markDirty(spec.section_spec_id)"
+                    @blur="handleBlur(spec.section_spec_id)"
                     min="0"
                   />
                 </td>
@@ -105,44 +102,25 @@
                   <input
                     type="checkbox"
                     v-model="editState[spec.section_spec_id].is_global_default"
-                    @change="markDirty(spec.section_spec_id)"
+                    @change="handleCheckboxChange(spec.section_spec_id)"
                   />
                 </td>
                 <td class="col-bool editable">
                   <input
                     type="checkbox"
                     v-model="editState[spec.section_spec_id].is_optional"
-                    @change="markDirty(spec.section_spec_id)"
+                    @change="handleCheckboxChange(spec.section_spec_id)"
                   />
                 </td>
                 <td class="col-bool editable">
                   <input
                     type="checkbox"
                     v-model="editState[spec.section_spec_id].presense_enforced"
-                    @change="markDirty(spec.section_spec_id)"
+                    @change="handleCheckboxChange(spec.section_spec_id)"
                   />
                 </td>
                 <td class="col-date">{{ formatDate(spec.last_reviewed) }}</td>
                 <td class="col-user">{{ spec.updated_by || '-' }}</td>
-                <td class="col-actions">
-                  <button
-                    v-if="isDirty(spec.section_spec_id)"
-                    @click="saveSpec(spec.section_spec_id)"
-                    class="save-btn"
-                    :disabled="saving[spec.section_spec_id]"
-                  >
-                    {{ saving[spec.section_spec_id] ? 'Saving...' : 'Save' }}
-                  </button>
-                  <button
-                    v-if="isDirty(spec.section_spec_id)"
-                    @click="resetSpec(spec.section_spec_id)"
-                    class="cancel-btn"
-                    :disabled="saving[spec.section_spec_id]"
-                  >
-                    Cancel
-                  </button>
-                  <span v-if="!isDirty(spec.section_spec_id)" class="no-changes">-</span>
-                </td>
               </tr>
             </tbody>
           </table>
@@ -206,10 +184,6 @@ function initEditState() {
   });
 }
 
-function markDirty(id) {
-  // Triggers reactivity - isDirty will re-compute
-}
-
 function isDirty(id) {
   const edit = editState[id];
   const orig = originalState[id];
@@ -223,14 +197,9 @@ function isDirty(id) {
          edit.presense_enforced !== orig.presense_enforced;
 }
 
-function resetSpec(id) {
-  const orig = originalState[id];
-  if (orig) {
-    editState[id] = { ...orig };
-  }
-}
-
 async function saveSpec(id) {
+  if (!isDirty(id)) return;
+
   const edit = editState[id];
   if (!edit.section_name || !edit.section_name.trim()) {
     showToast('section_name is required', 'error');
@@ -244,14 +213,22 @@ async function saveSpec(id) {
     if (result?.blocked) {
       showToast('Update blocked - database is in read-only mode', 'warning');
     } else {
-      showToast('Section specification updated', 'success');
+      showToast('Saved', 'success');
       originalState[id] = { ...editState[id] };
     }
   } catch (error) {
-    showToast('Failed to update section specification', 'error');
+    showToast('Failed to save', 'error');
   } finally {
     saving[id] = false;
   }
+}
+
+function handleBlur(id) {
+  saveSpec(id);
+}
+
+function handleCheckboxChange(id) {
+  saveSpec(id);
 }
 
 async function handleFileChange() {
@@ -445,9 +422,8 @@ header h1 {
   background: #fafafa;
 }
 
-.col-id {
-  width: 50px;
-  text-align: center;
+.section-spec-table tbody tr.saving {
+  opacity: 0.6;
 }
 
 .col-name {
@@ -478,11 +454,6 @@ header h1 {
   width: 120px;
   color: #666;
   font-size: 0.85em;
-}
-
-.col-actions {
-  width: 140px;
-  text-align: center;
 }
 
 /* Editable cells styling */
@@ -521,47 +492,6 @@ header h1 {
   width: 18px;
   height: 18px;
   cursor: pointer;
-}
-
-.save-btn,
-.cancel-btn {
-  padding: 0.3rem 0.6rem;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  margin: 0 0.2rem;
-}
-
-.save-btn {
-  background: #28a745;
-  color: white;
-}
-
-.save-btn:hover:not(:disabled) {
-  background: #218838;
-}
-
-.save-btn:disabled {
-  background: #94d3a2;
-  cursor: not-allowed;
-}
-
-.cancel-btn {
-  background: #6c757d;
-  color: white;
-}
-
-.cancel-btn:hover:not(:disabled) {
-  background: #5a6268;
-}
-
-.cancel-btn:disabled {
-  cursor: not-allowed;
-}
-
-.no-changes {
-  color: #ccc;
 }
 
 /* Toast notification */
