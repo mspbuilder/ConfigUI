@@ -7,6 +7,10 @@ const log = createLogger(__filename);
 // Read-only mode flag - when true, SQL statements are logged/echoed
 const READ_ONLY_MODE = process.env.DB_READ_ONLY === 'true';
 
+// Admin bypass flag - when true, admin pages can write even in read-only mode
+// Set ADMIN_READ_ONLY=true to block admin writes as well
+const ADMIN_READ_ONLY = process.env.ADMIN_READ_ONLY === 'true';
+
 // Helper to format SQL with parameters for logging
 function formatSqlForLog(queryString, params) {
   let formatted = queryString;
@@ -206,5 +210,6 @@ module.exports = {
   execute,
   sql,
   READ_ONLY_MODE,
+  ADMIN_READ_ONLY,
   formatSqlForLog
 };

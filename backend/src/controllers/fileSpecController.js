@@ -1,4 +1,4 @@
-const { queryConfig, sql, READ_ONLY_MODE, formatSqlForLog } = require('../config/database');
+const { queryConfig, sql, READ_ONLY_MODE, ADMIN_READ_ONLY, formatSqlForLog } = require('../config/database');
 const { createLogger } = require('../utils/logger');
 
 const log = createLogger(__filename);
@@ -96,7 +96,8 @@ async function updateFileSpec(req, res) {
       p6: { type: sql.Int, value: parseInt(fileSpecId) }
     };
 
-    if (READ_ONLY_MODE) {
+    // Admin pages bypass read-only mode unless ADMIN_READ_ONLY is also set
+    if (READ_ONLY_MODE && ADMIN_READ_ONLY) {
       const sqlEcho = logBlockedWrite(reqLog, 'UPDATE_FILE_SPEC', sqlQuery, params);
       const response = { success: true, blocked: true, message: 'Write blocked (read-only mode)' };
       if (isAdmin(req)) {
