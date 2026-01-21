@@ -21,7 +21,7 @@
           @change="handleCustomerChange"
           class="customer-select"
         >
-          <option value="">Choose Customer</option>
+          <option value="">Global Defaults</option>
           <option
             v-for="cust in configStore.customers"
             :key="cust.CustomerID"
@@ -42,10 +42,10 @@
           <select
             v-model="selectedOrganization"
             @change="handleOrganizationChange"
-            :disabled="!selectedCategory"
+            :disabled="!selectedCategory || isGlobalView"
             :class="{ 'select-bold': isSelectedOrgBold() }"
           >
-            <option value="">Choose Organization</option>
+            <option value="">{{ isGlobalView ? 'N/A (Global View)' : 'Choose Organization' }}</option>
             <option
               v-for="org in configStore.organizations"
               :key="org.orgid"
@@ -61,10 +61,10 @@
           <select
             v-model="selectedSite"
             @change="handleSiteChange"
-            :disabled="!selectedOrganization"
+            :disabled="!selectedOrganization || isGlobalView"
             :class="{ 'select-bold': isSelectedSiteBold() }"
           >
-            <option value="">Choose Site</option>
+            <option value="">{{ isGlobalView ? 'N/A (Global View)' : 'Choose Site' }}</option>
             <option
               v-for="site in configStore.sites"
               :key="site.site"
@@ -80,10 +80,10 @@
           <select
             v-model="selectedAgent"
             @change="handleAgentChange"
-            :disabled="!selectedSite"
+            :disabled="!selectedSite || isGlobalView"
             :class="{ 'select-bold': isSelectedAgentBold() }"
           >
-            <option value="">Choose Agent</option>
+            <option value="">{{ isGlobalView ? 'N/A (Global View)' : 'Choose Agent' }}</option>
             <option
               v-for="agent in configStore.agents"
               :key="agent.agent"
@@ -286,6 +286,9 @@ const adminViewEnabled = ref(true);
 // Effective admin status - true only if user is admin AND admin view is enabled
 const isEffectiveAdmin = computed(() => authStore.isAdmin && adminViewEnabled.value);
 
+// Check if viewing global defaults (admin with no customer selected)
+const isGlobalView = computed(() => authStore.isAdmin && !selectedCustomer.value);
+
 // Track expanded sections - empty Set means all collapsed by default
 const expandedSections = ref(new Set());
 
@@ -339,10 +342,12 @@ const canEdit = computed(() => {
 });
 
 // Get the effective customer ID (admin-selected or user's own)
+// For admins with no customer selected, returns empty string to load global defaults
 const effectiveCustomerId = computed(() => {
-  // Admins always use selectedCustomer (regardless of admin view toggle)
-  if (authStore.isAdmin && selectedCustomer.value) {
-    return selectedCustomer.value;
+  if (authStore.isAdmin) {
+    // Admin with customer selected: use that customer
+    // Admin with no customer selected: return empty string for global defaults
+    return selectedCustomer.value || '';
   }
   return authStore.user?.customerId;
 });
@@ -696,8 +701,12 @@ onMounted(async () => {
   await authStore.fetchUserRoles();
 
   if (authStore.isAdmin) {
-    // Admin users: load customer list and wait for selection
+    // Admin users: load customer list for selection dropdown
     await configStore.loadCustomers();
+    // Also load categories immediately so admin can view global defaults without selecting a customer
+    // Pass empty string to indicate global/default config view
+    configStore.setSelectedCustomerId('');
+    await configStore.loadCategories('');
   } else if (authStore.user?.customerId) {
     // Normal users: use their associated customerId
     configStore.setSelectedCustomerId(authStore.user.customerId);
@@ -714,16 +723,25 @@ watch(adminViewEnabled, async () => {
 });
 
 async function handleCustomerChange() {
-  // Reset dependent selections when customer changes
-  selectedCategory.value = '';
+  // Reset dependent selections when customer changes (but preserve category)
   selectedOrganization.value = '';
   selectedSite.value = '';
   selectedAgent.value = '';
 
-  if (selectedCustomer.value) {
-    configStore.setSelectedCustomerId(selectedCustomer.value);
-    await configStore.loadCategories(selectedCustomer.value);
-    // Organizations will load after category is selected
+  // For admin: selectedCustomer can be empty string (global defaults) or a customer ID
+  const custId = selectedCustomer.value || '';
+  configStore.setSelectedCustomerId(custId);
+  await configStore.loadCategories(custId);
+
+  // If a category is already selected, reload orgs and data for the new customer (or global)
+  if (selectedCategory.value) {
+    if (custId) {
+      await configStore.loadOrganizations(custId, selectedCategory.value);
+    } else {
+      // Clear organizations when viewing global defaults
+      configStore.organizations = [];
+    }
+    await loadData();
   }
 }
 
@@ -735,10 +753,20 @@ async function handleCategoryChange() {
 
   configStore.setSelectedCategory(selectedCategory.value);
 
-  // Reload organizations with the new category (required for override flags)
-  if (selectedCategory.value && effectiveCustomerId.value) {
-    await configStore.loadOrganizations(effectiveCustomerId.value, selectedCategory.value);
-    // Auto-load configs when category is selected
+  if (selectedCategory.value) {
+    // For admins, effectiveCustomerId may be empty string (global defaults) or a customer ID
+    // For regular users, effectiveCustomerId is always their customerId
+    const custId = effectiveCustomerId.value;
+
+    // Load organizations only if we have a customer selected (not for global view)
+    if (custId) {
+      await configStore.loadOrganizations(custId, selectedCategory.value);
+    } else {
+      // Clear organizations when viewing global defaults
+      configStore.organizations = [];
+    }
+
+    // Auto-load configs when category is selected (works with empty string for global defaults)
     await loadData();
   }
 }

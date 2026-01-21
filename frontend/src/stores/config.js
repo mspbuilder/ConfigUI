@@ -316,11 +316,21 @@ export const useConfigStore = defineStore('config', {
     },
 
     setSelectedCustomerId(customerId) {
+      // customerId can be:
+      // - A customer ID string (e.g., "ABC123") for customer-specific configs
+      // - Empty string ('') for global default configs (admin only)
+      // - null for non-admin users without a customer
       this.selectedCustomerId = customerId;
-      this.selectedCategory = null;
+      // Don't reset category - preserve it across customer changes
       this.selectedOrganization = null;
       this.selectedSite = null;
       this.selectedAgent = null;
+      // Clear dependent data when customer changes
+      this.organizations = [];
+      this.sites = [];
+      this.agents = [];
+      // Clear configs so stale details don't show for the new customer
+      this.configs = [];
     },
 
     setSelectedCategory(category) {

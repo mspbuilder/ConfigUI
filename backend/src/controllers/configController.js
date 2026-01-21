@@ -48,13 +48,19 @@ function logBlockedWrite(reqLog, operation, sqlQuery, params) {
 
 // Get configs using Config.CfgOverridesWithHierarchy TVF (replaces GET_CONFIG_DATA_BY_CUSTID_CATEGORY_ORG_SITE_AGENT)
 // TVF provides hierarchy context (ParentValue, ParentLevel, ParentConfigID) and excludes legacy Count column
+// When customerId is empty string, returns global default configs for the category
 async function getCustomerConfigs(req, res) {
   const reqLog = req.log || log;
   try {
     const { customerId, category, organization, site, agent } = req.query;
 
-    if (!customerId || !category) {
-      return res.status(400).json({ error: 'customerId and category are required' });
+    if (!category) {
+      return res.status(400).json({ error: 'category is required' });
+    }
+
+    // customerId can be empty string for global defaults (admin viewing global config)
+    if (customerId === undefined || customerId === null) {
+      return res.status(400).json({ error: 'customerId is required (use empty string for global defaults)' });
     }
 
     // Ensure string types for all parameters
