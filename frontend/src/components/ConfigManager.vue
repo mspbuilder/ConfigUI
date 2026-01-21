@@ -3,10 +3,14 @@
     <header>
       <h1>Configuration Manager</h1>
       <div class="user-info">
-        <router-link v-if="authStore.isAdmin" to="/admin/file-specs" class="admin-link">Admin</router-link>
+        <router-link v-if="authStore.isAdmin && !userModeEnabled" to="/admin/file-specs" class="admin-link">Admin</router-link>
         <label v-if="authStore.isAdmin" class="admin-view-toggle">
-          <input type="checkbox" v-model="adminViewEnabled" />
+          <input type="checkbox" v-model="adminViewEnabled" :disabled="userModeEnabled" />
           <span>Admin View</span>
+        </label>
+        <label v-if="authStore.isAdmin" class="admin-view-toggle user-mode-toggle">
+          <input type="checkbox" v-model="userModeEnabled" @change="handleUserModeChange" />
+          <span>User Mode</span>
         </label>
         <span>{{ authStore.user?.username }}</span>
         <button @click="handleLogout" class="logout-btn">Logout</button>
@@ -16,7 +20,7 @@
     <div class="filters">
       <div class="filter-row">
         <select
-          v-if="authStore.isAdmin"
+          v-if="authStore.isAdmin && !userModeEnabled"
           v-model="selectedCustomer"
           @change="handleCustomerChange"
           class="customer-select"
@@ -280,14 +284,18 @@ const selectedOrganization = ref('');
 const selectedSite = ref('');
 const selectedAgent = ref('');
 
-// Admin view toggle - when disabled, admin behaves as standard user
+// Admin view toggle - when disabled, admin behaves as standard user (hides parent values, etc.)
 const adminViewEnabled = ref(true);
 
-// Effective admin status - true only if user is admin AND admin view is enabled
-const isEffectiveAdmin = computed(() => authStore.isAdmin && adminViewEnabled.value);
+// User mode toggle - when enabled, provides full standard user experience
+// Hides customer selector, locks to current customer, hides admin-specific UI
+const userModeEnabled = ref(false);
 
-// Check if viewing global defaults (admin with no customer selected)
-const isGlobalView = computed(() => authStore.isAdmin && !selectedCustomer.value);
+// Effective admin status - true only if user is admin AND admin view is enabled AND not in user mode
+const isEffectiveAdmin = computed(() => authStore.isAdmin && adminViewEnabled.value && !userModeEnabled.value);
+
+// Check if viewing global defaults (admin with no customer selected, and not in user mode)
+const isGlobalView = computed(() => authStore.isAdmin && !selectedCustomer.value && !userModeEnabled.value);
 
 // Track expanded sections - empty Set means all collapsed by default
 const expandedSections = ref(new Set());
@@ -722,6 +730,24 @@ watch(adminViewEnabled, async () => {
   // No reset needed - just toggles UI behavior for parent values, etc.
 });
 
+// Handle User Mode toggle - locks admin to current customer for full standard user experience
+async function handleUserModeChange() {
+  if (userModeEnabled.value) {
+    // Entering User Mode - require a customer to be selected
+    if (!selectedCustomer.value) {
+      // No customer selected - show warning and revert
+      showToast('Please select a customer before entering User Mode', 'warning');
+      userModeEnabled.value = false;
+      return;
+    }
+    // Lock to current customer - disable admin view toggle
+    // The customer selector will be hidden via v-if
+  } else {
+    // Exiting User Mode - no special handling needed
+    // Admin can now change customers again
+  }
+}
+
 async function handleCustomerChange() {
   // Reset dependent selections when customer changes (but preserve category)
   selectedOrganization.value = '';
@@ -1008,6 +1034,20 @@ header h1 {
   cursor: pointer;
   width: 14px;
   height: 14px;
+}
+
+.admin-view-toggle input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.user-mode-toggle {
+  background: rgba(255, 200, 100, 0.25);
+  border-color: rgba(255, 200, 100, 0.5);
+}
+
+.user-mode-toggle:hover {
+  background: rgba(255, 200, 100, 0.35);
 }
 
 .filters {
